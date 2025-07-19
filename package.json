@@ -1,0 +1,85 @@
+{
+  "name": "did-jwks",
+  "version": "0.1.0",
+  "description": "A DID method that enables JWKS endpoints to be used as DID identifiers",
+  "keywords": [
+    "did",
+    "decentralized-identifier",
+    "jwks",
+    "json-web-key-set",
+    "oidc",
+    "openid-connect",
+    "oauth2",
+    "jwt",
+    "json-web-token",
+    "verification",
+    "authentication",
+    "identity",
+    "resolver",
+    "did-resolver",
+    "did-method",
+    "did-jwks",
+    "cryptography",
+    "public-key",
+    "key-discovery"
+  ],
+  "homepage": "https://github.com/catena-labs/did-jwks#readme",
+  "bugs": "https://github.com/catena-labs/did-jwks/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/catena-labs/did-jwks.git"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Catena Labs",
+    "url": "https://catenalabs.com"
+  },
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": "./dist/cli.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown src/index.ts src/cli.ts --out-dir dist --format esm",
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun test",
+    "clean": "git clean -xdf dist node_modules/.cache",
+    "cli": "bun run src/cli.ts",
+    "fix": "bun run format && bun run lint:fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "nuke": "bun run clean && git clean -xdf node_modules",
+    "outdated": "npx npm-check-updates --interactive --format group",
+    "prepublishOnly": "bun run build",
+    "publint": "npx publint@latest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "valibot": "^1.1.0",
+    "web-identity-schemas": "^0.1.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.31.0",
+    "@types/bun": "latest",
+    "did-resolver": "^4.1.0",
+    "eslint": "^9.31.0",
+    "eslint-config-flat-gitignore": "^2.1.0",
+    "eslint-config-prettier": "^10.1.5",
+    "prettier": "^3.6.2",
+    "prettier-plugin-packagejson": "^2.5.18",
+    "standard-parse": "^0.2.0",
+    "tsdown": "^0.12.9",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.37.0"
+  }
+}
