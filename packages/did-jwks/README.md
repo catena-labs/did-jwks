@@ -1,6 +1,6 @@
 # did-jwks
 
-Core implementation of the `did:jwks` method that enables JWKS endpoints to be used as DID identifiers.
+Core implementation of the [`did:jwks`](https://github.com/catena-labs/did-jwks) method that enables OAuth2/OIDC JWKS endpoints to be used as DID identifiers.
 
 ## Installation
 

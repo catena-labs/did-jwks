@@ -1,6 +1,6 @@
 # jwks-did-resolver
 
-A `did:jwks` resolver plugin for the standard [`did-resolver`](https://github.com/decentralized-identity/did-resolver) library.
+A [`did:jwks`](https://github.com/catena-labs/did-jwks) resolver plugin for the standard [`did-resolver`](https://github.com/decentralized-identity/did-resolver) library.
 
 ## Installation
 
