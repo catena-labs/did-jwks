@@ -1,0 +1,67 @@
+{
+  "name": "jwks-did-resolver",
+  "version": "0.1.0",
+  "description": "Resolve did:jwks documents using did-resolver",
+  "keywords": [
+    "did",
+    "decentralized-identifier",
+    "jwks",
+    "json-web-key-set",
+    "oidc",
+    "openid-connect",
+    "oauth2",
+    "jwt",
+    "json-web-token",
+    "verification",
+    "authentication",
+    "identity",
+    "resolver",
+    "did-resolver",
+    "did-method",
+    "did-jwks",
+    "cryptography",
+    "public-key",
+    "key-discovery"
+  ],
+  "homepage": "https://github.com/catena-labs/did-jwks#readme",
+  "bugs": "https://github.com/catena-labs/did-jwks/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/catena-labs/did-jwks.git"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Catena Labs",
+    "url": "https://catenalabs.com"
+  },
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown src/index.ts --out-dir dist --format esm",
+    "clean": "git clean -xdf dist node_modules/.cache",
+    "prepublishOnly": "bun run build",
+    "publint": "npx publint@latest"
+  },
+  "dependencies": {
+    "did-jwks": "workspace:*"
+  },
+  "devDependencies": {
+    "@repo/test-helpers": "workspace:*",
+    "did-resolver": "^4.1.0",
+    "standard-parse": "^0.2.0",
+    "tsdown": "^0.12.9",
+    "typescript": "^5.8.3",
+    "web-identity-schemas": "^0.1.6"
+  }
+}

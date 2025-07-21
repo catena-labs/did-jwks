@@ -1,7 +1,6 @@
 import type { DIDResolutionResult, DIDResolver } from "did-resolver"
-import { fetchJwks, type FetchJwksOptions } from "./fetch"
-import { createDidDocument } from "./did-document"
-import { isDidJwksUri, isDidUri } from "./did-jwks"
+import { isDidJwks, fetchJwksDidDocument } from "did-jwks"
+import type { FetchJwksOptions } from "did-jwks"
 
 /**
  * Get a `did-resolver` compatible resolver for did:jwks
@@ -19,7 +18,7 @@ export function getResolver(opts: FetchJwksOptions = {}): {
   jwks: DIDResolver
 } {
   async function resolve(did: string): Promise<DIDResolutionResult> {
-    if (!isDidUri(did)) {
+    if (!did) {
       return {
         didDocument: null,
         didDocumentMetadata: {},
@@ -27,7 +26,7 @@ export function getResolver(opts: FetchJwksOptions = {}): {
       }
     }
 
-    if (!isDidJwksUri(did)) {
+    if (!isDidJwks(did)) {
       return {
         didDocument: null,
         didDocumentMetadata: {},
@@ -35,9 +34,9 @@ export function getResolver(opts: FetchJwksOptions = {}): {
       }
     }
 
-    const jwks = await fetchJwks(did, opts)
+    const didDocument = await fetchJwksDidDocument(did, opts)
 
-    if (!jwks) {
+    if (!didDocument) {
       return {
         didDocument: null,
         didDocumentMetadata: {},
@@ -46,7 +45,7 @@ export function getResolver(opts: FetchJwksOptions = {}): {
     }
 
     return {
-      didDocument: createDidDocument(did, jwks),
+      didDocument,
       didDocumentMetadata: {},
       didResolutionMetadata: { contentType: "application/did+ld+json" }
     }

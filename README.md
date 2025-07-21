@@ -1,4 +1,4 @@
-# did-jwks
+# did:jwks Method
 
 A DID method that bridges the gap between existing OAuth2/OIDC infrastructure and the DID ecosystem by making JWKS endpoints directly usable as DID identifiers.
 
@@ -42,36 +42,24 @@ Similar to `did:key` and `did:pkh`, the `did:jwks` DID document is dynamically g
 
 Today if you get a JWT signed by `mycompany.com`, you have to guess where their public keys are. With `did:jwks`, the verification process is standardized and discoverable. It essentially turns "I have OAuth2 keys" into "I have a DID" with zero friction.
 
-## Installation
+## Implementations
+
+This repository contains two main implementations:
+
+### [`did-jwks`](./packages/did-jwks) - Core Implementation
+
+The core `did:jwks` method implementation with CLI and direct resolution capabilities.
 
 ```bash
 npm install did-jwks
 ```
 
-## Usage
+### [`jwks-did-resolver`](./packages/jwks-did-resolver) - DID Resolver Integration
 
-This package is intended to be used with the [`did-resolver`](https://github.com/decentralized-identity/did-resolver) library.
-
-### With DID Resolver
-
-```typescript
-import { Resolver } from "did-resolver"
-import { getResolver } from "did-jwks"
-
-const resolver = new Resolver({
-  ...getResolver()
-})
-
-const result = await resolver.resolve("did:jwks:example.com")
-console.log(result.didDocument)
-```
-
-## CLI Usage
-
-The package includes a CLI for resolving DID identifiers:
+A resolver plugin for the standard [`did-resolver`](https://github.com/decentralized-identity/did-resolver) library.
 
 ```bash
-npx did-jwks did:jwks:accounts.google.com
+npm install jwks-did-resolver
 ```
 
 ## License (MIT)
