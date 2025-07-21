@@ -1,7 +1,8 @@
-import * as v from "valibot"
-import { OpenIDConfigurationSchema } from "./schemas"
+import { OpenIDConfigurationSchema } from "./utils/schemas"
 import type { Did, JsonWebKeySet } from "web-identity-schemas"
 import { JsonWebKeySetSchema } from "web-identity-schemas/valibot"
+import { fetchWithSchema } from "./utils/fetch-with-schema"
+import { createDidJwksDidDocument } from "./did-jwks"
 
 const jwksUrl = (base: string) => `${base}/.well-known/jwks.json`
 const openidConfigurationUrl = (base: string) =>
@@ -58,37 +59,23 @@ export async function fetchJwks(
   return jwks
 }
 
-async function fetchWithSchema<T extends v.GenericSchema>(
-  url: string,
-  schema: T,
-  fetchImpl: typeof fetch = globalThis.fetch
-): Promise<v.InferOutput<T> | null> {
-  const resp = await fetchImpl(url)
-  if (!resp.ok) {
+/**
+ * Fetches the DID document for a given DID with the "jwks" method.
+ *
+ * @param did - The DID to fetch the document for.
+ * @param opts - The options for the fetch.
+ * @returns The DID document or `null` if the document could not be fetched.
+ */
+export async function fetchJwksDidDocument(
+  did: Did<"jwks">,
+  opts: FetchJwksOptions = {}
+) {
+  const jwks = await fetchJwks(did, opts)
+  if (!jwks) {
     return null
   }
 
-  const result = v.safeParse(schema, await resp.json())
-
-  if (result.success) {
-    return result.output
-  }
-
-  return null
-}
-
-export function isHttpAllowed(
-  path: string,
-  allowedHttpHosts: string[] = []
-): boolean {
-  const [host] = path.split("/")
-
-  if (host) {
-    const [hostWithoutPort] = host.split(":")
-    return allowedHttpHosts.some((host) => host === hostWithoutPort)
-  }
-
-  return false
+  return createDidJwksDidDocument(did, jwks)
 }
 
 /**
@@ -102,7 +89,7 @@ export function isHttpAllowed(
  *
  * @returns The base path
  */
-export function buildBaseUrl(
+function buildBaseUrl(
   did: Did<"jwks">,
   allowedHttpHosts: string[] = []
 ): string {
@@ -112,7 +99,22 @@ export function buildBaseUrl(
     .map(decodeURIComponent)
     .join("/")
 
-  return isHttpAllowed(basePath, allowedHttpHosts)
-    ? `http://${basePath}`
-    : `https://${basePath}`
+  const protocol = getProtocol(basePath, allowedHttpHosts)
+  return `${protocol}://${basePath}`
+}
+
+function getProtocol(
+  path: string,
+  allowedHttpHosts: string[] = []
+): "http" | "https" {
+  const [host] = path.split("/")
+
+  if (host) {
+    const [hostWithoutPort] = host.split(":")
+    return allowedHttpHosts.some((host) => host === hostWithoutPort)
+      ? "http"
+      : "https"
+  }
+
+  return "https"
 }

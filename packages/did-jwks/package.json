@@ -48,37 +48,21 @@
   "files": [
     "dist"
   ],
-  "workspaces": [
-    "packages/*"
-  ],
   "scripts": {
-    "build": "bun run --filter='*' build",
-    "check": "bun run format:check && bun run lint && bun run typecheck && bun test",
-    "clean": "bun run --filter='*' clean; git clean -xdf node_modules/.cache",
-    "cli": "bun --filter=./packages/did-jwks --elide-lines=0 run cli",
-    "fix": "bun run format && bun run lint:fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "nuke": "bun run clean && git clean -xdf node_modules",
-    "outdated": "npx npm-check-updates --interactive --format group --workspaces",
-    "publint": "bun run --filter='*' publint",
-    "typecheck": "tsc --noEmit"
+    "build": "tsdown src/index.ts src/cli.ts --out-dir dist --format esm",
+    "clean": "git clean -xdf dist node_modules/.cache",
+    "cli": "bun run src/cli.ts",
+    "prepublishOnly": "bun run build",
+    "publint": "npx publint@latest"
   },
-  "dependencies": {},
+  "dependencies": {
+    "valibot": "^1.1.0",
+    "web-identity-schemas": "^0.1.6"
+  },
   "devDependencies": {
-    "@changesets/cli": "^2.29.5",
-    "@eslint/js": "^9.31.0",
-    "@types/bun": "latest",
-    "eslint": "^9.31.0",
-    "eslint-config-flat-gitignore": "^2.1.0",
-    "eslint-config-prettier": "^10.1.8",
-    "prettier": "^3.6.2",
-    "prettier-plugin-packagejson": "^2.5.19",
+    "@repo/test-helpers": "workspace:*",
     "standard-parse": "^0.2.0",
-    "typescript": "^5.8.3",
-    "typescript-eslint": "^8.38.0"
-  },
-  "packageManager": "bun@1.2.19"
+    "tsdown": "^0.12.9",
+    "typescript": "^5.8.3"
+  }
 }

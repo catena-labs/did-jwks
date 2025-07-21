@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-import { Resolver } from "did-resolver"
-import { getResolver } from "./resolver"
-import { isDidJwksUri } from "./did-jwks"
+import { isDidJwks } from "./did-jwks"
+import { fetchJwksDidDocument } from "./fetch"
 
 async function main() {
   const args = process.argv.slice(2)
@@ -13,18 +12,16 @@ async function main() {
   }
 
   const did = args[0]
-  if (!isDidJwksUri(did)) {
+  if (!isDidJwks(did)) {
     console.error("Invalid DID: ", did)
     process.exit(1)
   }
 
-  const didJwksResolver = getResolver({
+  const didDocument = await fetchJwksDidDocument(did, {
     allowedHttpHosts: ["localhost", "0.0.0.0"]
   })
-  const resolver = new Resolver(didJwksResolver)
-  const doc = await resolver.resolve(did)
 
-  console.log(JSON.stringify(doc, null, 2))
+  console.log(JSON.stringify(didDocument, null, 2))
 }
 
 main().catch((error: unknown) => {

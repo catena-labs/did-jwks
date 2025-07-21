@@ -1,4 +1,3 @@
-import type { DIDDocument } from "did-resolver"
 import * as v from "valibot"
 import type {
   Did,
@@ -6,6 +5,15 @@ import type {
   VerificationMethod
 } from "web-identity-schemas"
 import { DidDocumentSchema, UriSchema } from "web-identity-schemas/valibot"
+import { isDidWithMethod } from "web-identity-schemas/valibot"
+export { isDid } from "web-identity-schemas/valibot"
+
+/**
+ * Helper type predicate for `did:jwks` URIs.
+ * @param val
+ * @returns
+ */
+export const isDidJwks = (val: unknown) => isDidWithMethod("jwks", val)
 
 /**
  * A minimal DidDocument schema with an array for @context, and no service
@@ -16,6 +24,8 @@ const MinimalDidDocumentSchema = v.object({
   "@context": v.array(UriSchema)
 })
 
+type DidDocument = v.InferOutput<typeof MinimalDidDocumentSchema>
+
 /**
  * Create a DID document from a JWKS.
  *
@@ -23,10 +33,10 @@ const MinimalDidDocumentSchema = v.object({
  * @param jwks - The JWKS.
  * @returns The DID document.
  */
-export function createDidDocument(
-  didUri: Did,
+export function createDidJwksDidDocument(
+  did: Did<"jwks">,
   jwks: JsonWebKeySet
-): DIDDocument {
+): DidDocument {
   const { verificationMethods, sigMethodIds, encMethodIds } = jwks.keys.reduce<{
     verificationMethods: VerificationMethod[]
     sigMethodIds: string[]
@@ -34,12 +44,12 @@ export function createDidDocument(
   }>(
     (acc, { kid, use, ...publicKeyJwk }, index) => {
       const keyId = kid ?? `key-${index}`
-      const id = `${didUri}#${keyId}` as const
+      const id = `${did}#${keyId}` as const
 
       acc.verificationMethods.push({
         id,
         type: "JsonWebKey",
-        controller: didUri,
+        controller: did,
         publicKeyJwk
       })
 
@@ -60,7 +70,7 @@ export function createDidDocument(
 
   return v.parse(MinimalDidDocumentSchema, {
     "@context": ["https://www.w3.org/ns/did/v1"],
-    id: didUri,
+    id: did,
     verificationMethod: verificationMethods,
     assertionMethod: sigMethodIds,
     authentication: sigMethodIds,

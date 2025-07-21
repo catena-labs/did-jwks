@@ -19,17 +19,28 @@ The `did:jwks` method allows existing OAuth2 providers to become DID-compatible 
 - **DID Document Generation**: Transforms JWKS into standard DID documents with verification methods
 - **Standard Integration**: Works with existing DID resolution libraries
 
-### Architecture
+### Monorepo Architecture
 
 ```
-src/
-├── index.ts           # Main export (resolver)
-├── resolver.ts        # Core DID resolver implementation
-├── did-document.ts    # DID document generation from JWKS
-├── did-jwks.ts        # DID:JWKS specific logic
-├── fetch.ts           # HTTP fetching utilities
-├── schemas.ts         # Validation schemas
-└── resolver.test.ts   # Tests
+packages/
+├── did-jwks/                # Core implementation
+│   └── src/
+│       ├── index.ts         # Main export
+│       ├── cli.ts           # CLI implementation
+│       ├── did-jwks.ts      # Core DID:JWKS logic
+│       ├── fetch.ts         # HTTP utilities
+│       └── utils/
+│           ├── fetch-with-schema.ts
+│           └── schemas.ts   # Validation schemas
+├── jwks-did-resolver/       # did-resolver integration
+│   └── src/
+│       ├── index.ts         # Resolver export
+│       ├── resolver.ts      # DID resolver implementation
+│       └── resolver.test.ts # Tests
+└── test-helpers/            # Shared test utilities
+    ├── fixtures/            # Test data
+    ├── helpers/
+    └── setup.ts
 ```
 
 ## Development Guidelines
