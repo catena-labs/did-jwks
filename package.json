@@ -48,37 +48,36 @@
   "files": [
     "dist"
   ],
-  "workspaces": [
-    "packages/*"
-  ],
   "scripts": {
-    "build": "bun run --filter='*' build",
-    "check": "bun run format:check && bun run lint && bun run typecheck && bun test",
-    "clean": "bun run --filter='*' clean; git clean -xdf node_modules/.cache",
-    "cli": "bun --filter=./packages/did-jwks --elide-lines=0 run cli",
-    "fix": "bun run format && bun run lint:fix",
+    "build": "pnpm run --filter='*' build",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm test",
+    "clean": "pnpm run --filter='*' clean; git clean -xdf node_modules/.cache",
+    "cli": "pnpm --filter=./packages/did-jwks run cli",
+    "fix": "pnpm run format && pnpm run lint:fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "nuke": "bun run clean && git clean -xdf node_modules",
+    "nuke": "pnpm run clean && git clean -xdf node_modules",
     "outdated": "npx npm-check-updates --interactive --format group --workspaces",
-    "publint": "bun run --filter='*' publint",
+    "publint": "pnpm run --filter='*' publint",
+    "test": "pnpm --filter='*' test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {},
   "devDependencies": {
     "@changesets/cli": "^2.29.5",
     "@eslint/js": "^9.31.0",
-    "@types/bun": "latest",
+    "@types/node": "^24",
     "eslint": "^9.31.0",
     "eslint-config-flat-gitignore": "^2.1.0",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.6.2",
     "prettier-plugin-packagejson": "^2.5.19",
-    "standard-parse": "^0.2.0",
+    "standard-parse": "^0.3.0",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.38.0"
+    "typescript-eslint": "^8.38.0",
+    "vitest": "^3.2.4"
   },
-  "packageManager": "bun@1.2.19"
+  "packageManager": "pnpm@10.13.1"
 }

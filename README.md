@@ -2,7 +2,7 @@
 
 A DID method that bridges the gap between existing OAuth2/OIDC infrastructure and the DID ecosystem by making JWKS endpoints directly usable as DID identifiers.
 
-See the **[full specification](./spec.md)** (draft) - detailed technical information, security considerations, and implementation details.
+See the **[did:jwks specification](./SPEC.md)** (draft) - detailed technical information, security considerations, and implementation details.
 
 ## Example
 

@@ -50,18 +50,20 @@
   "scripts": {
     "build": "tsdown src/index.ts --out-dir dist --format esm",
     "clean": "git clean -xdf dist node_modules/.cache",
-    "prepublishOnly": "bun run build",
-    "publint": "npx publint@latest"
+    "prepublishOnly": "pnpm run build",
+    "publint": "npx publint@latest",
+    "test": "vitest"
   },
   "dependencies": {
     "did-jwks": "workspace:*"
   },
   "devDependencies": {
-    "@repo/test-helpers": "workspace:*",
+    "@repo/test-utils": "workspace:*",
     "did-resolver": "^4.1.0",
-    "standard-parse": "^0.2.0",
+    "standard-parse": "^0.3.0",
     "tsdown": "^0.12.9",
     "typescript": "^5.8.3",
+    "vitest": "^3.2.4",
     "web-identity-schemas": "^0.1.6"
   }
 }
