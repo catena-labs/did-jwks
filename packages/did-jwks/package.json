@@ -51,18 +51,20 @@
   "scripts": {
     "build": "tsdown src/index.ts src/cli.ts --out-dir dist --format esm",
     "clean": "git clean -xdf dist node_modules/.cache",
-    "cli": "bun run src/cli.ts",
-    "prepublishOnly": "bun run build",
-    "publint": "npx publint@latest"
+    "cli": "pnpm run src/cli.ts",
+    "prepublishOnly": "pnpm run build",
+    "publint": "npx publint@latest",
+    "test": "vitest"
   },
   "dependencies": {
     "valibot": "^1.1.0",
     "web-identity-schemas": "^0.1.6"
   },
   "devDependencies": {
-    "@repo/test-helpers": "workspace:*",
-    "standard-parse": "^0.2.0",
+    "@repo/test-utils": "workspace:*",
+    "standard-parse": "^0.3.0",
     "tsdown": "^0.12.9",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
   }
 }

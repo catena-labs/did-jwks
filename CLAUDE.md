@@ -1,5 +1,4 @@
 ---
-description: Use Bun instead of Node.js, npm, pnpm, or vite.
 globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
 alwaysApply: false
 ---
@@ -37,7 +36,7 @@ packages/
 │       ├── index.ts         # Resolver export
 │       ├── resolver.ts      # DID resolver implementation
 │       └── resolver.test.ts # Tests
-└── test-helpers/            # Shared test utilities
+└── test-utils/            # Shared test utilities
     ├── fixtures/            # Test data
     ├── helpers/
     └── setup.ts
@@ -45,32 +44,21 @@ packages/
 
 ## Development Guidelines
 
-### Runtime
-
-Default to using Bun instead of Node.js.
-
-- Use `bun <file>` instead of `node <file>` or `ts-node <file>`
-- Use `bun test` instead of `jest` or `vitest`
-- Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
-- Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
-- Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
-- Bun automatically loads .env, so don't use dotenv.
-
 ### Quality Assurance
 
 Always run these commands before committing:
 
 ```bash
-bun run check  # Runs format:check, lint, typecheck, and test
-bun run fix    # Auto-fixes formatting and linting issues
+pnpm run check  # Runs format:check, lint, typecheck, and test
+pnpm run fix    # Auto-fixes formatting and linting issues
 ```
 
 ### Testing
 
-Use `bun test` to run tests.
+Use `pnpm test` to run tests.
 
 ```ts#example.test.ts
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 
 test("did:jwks resolution", async () => {
   const result = await resolve("did:jwks:example.com");
@@ -85,16 +73,6 @@ Key dependencies:
 - `valibot`: Schema validation (preferred over Zod in this project)
 - `web-identity-schemas`: Common web identity schemas
 - `did-resolver`: Standard DID resolution interface
-
-### APIs
-
-- `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.
-- `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
-- `Bun.redis` for Redis. Don't use `ioredis`.
-- `Bun.sql` for Postgres. Don't use `pg` or `postgres.js`.
-- `WebSocket` is built-in. Don't use `ws`.
-- Prefer `Bun.file` over `node:fs`'s readFile/writeFile
-- Bun.$`ls` instead of execa.
 
 ### Use Cases
 
@@ -111,5 +89,3 @@ This method is designed for:
 - Implement proper error handling for network requests
 - Follow standard DID document security practices
 - Validate domain ownership through standard web mechanisms
-
-For more information, read the Bun API docs in `node_modules/bun-types/docs/**.md`.

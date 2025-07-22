@@ -22,7 +22,7 @@ export default tseslint.config(
     }
   },
   {
-    files: ["**/*.test.ts", "packages/test-helpers/**/*.ts"],
+    files: ["**/*.test.ts", "packages/test-utils/**/*.ts"],
     rules: {
       "@typescript-eslint/no-empty-object-type": "off",
       "@typescript-eslint/no-explicit-any": "off",

@@ -1,15 +1,14 @@
 {
-  "name": "@repo/test-helpers",
+  "name": "@repo/test-utils",
   "version": "0.0.0",
   "private": true,
   "exports": {
-    ".": "./helpers/matchers.ts",
+    ".": "./index.ts",
     "./fixtures/*.json": "./fixtures/*.json"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "did-resolver": "^4.1.0",
-    "standard-parse": "^0.2.0",
+    "standard-parse": "^0.3.0",
+    "vitest": "^3.2.4",
     "web-identity-schemas": "^0.1.6"
   }
 }

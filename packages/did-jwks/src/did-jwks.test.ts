@@ -1,16 +1,19 @@
-import { describe, it, expect, beforeEach, mock } from "bun:test"
-import type { OpenIDConfiguration } from "./utils/schemas"
+import { describe, it, expect, vi, afterEach } from "vitest"
 import { fetchJwksDidDocument } from "./fetch"
-import { expectJwksDidDocument } from "@repo/test-helpers"
-import accountsGoogleOidc from "@repo/test-helpers/fixtures/accounts-google-oidc.json"
-import accountsGoogleJwks from "@repo/test-helpers/fixtures/accounts-google-jwks.json"
-import appleidAppleOidc from "@repo/test-helpers/fixtures/appleid-apple-oidc.json"
-import appleidAppleJwks from "@repo/test-helpers/fixtures/appleid-apple-jwks.json"
-import tokenActionsGitHubJwks from "@repo/test-helpers/fixtures/token-actions-githubusercontent-jwks.json"
+import {
+  createMockOidcHost,
+  expectJwksDidDocument,
+  mockFetchFn
+} from "@repo/test-utils"
+import accountsGoogleOidc from "@repo/test-utils/fixtures/accounts-google-oidc.json"
+import accountsGoogleJwks from "@repo/test-utils/fixtures/accounts-google-jwks.json"
+import appleidAppleOidc from "@repo/test-utils/fixtures/appleid-apple-oidc.json"
+import appleidAppleJwks from "@repo/test-utils/fixtures/appleid-apple-jwks.json"
+import tokenActionsGitHubJwks from "@repo/test-utils/fixtures/token-actions-githubusercontent-jwks.json"
 
 describe("fetchJwksDidDocument()", () => {
-  beforeEach(() => {
-    mock.restore()
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it("handles localhost with ports", async () => {
@@ -152,41 +155,3 @@ describe("fetchJwksDidDocument()", () => {
     expect(doc).toBeNull()
   })
 })
-
-function createMockOidcHost({
-  jwks,
-  oidc
-}: {
-  jwks: { keys: Record<string, unknown>[] }
-  oidc: OpenIDConfiguration
-}) {
-  return mock((url: string) => {
-    if (url.endsWith("/.well-known/openid-configuration")) {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(oidc)
-      })
-    }
-
-    if (url === oidc.jwks_uri) {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(jwks)
-      })
-    }
-
-    return Promise.resolve({
-      ok: false,
-      status: 404
-    })
-  }) as unknown as typeof globalThis.fetch
-}
-
-function mockFetchFn(json = {}) {
-  return mock(() =>
-    Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve(json)
-    })
-  ) as unknown as typeof globalThis.fetch
-}

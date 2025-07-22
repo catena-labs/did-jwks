@@ -1,5 +1,0 @@
-[install]
-linker = "isolated"
-
-[test]
-preload = ["./packages/test-helpers/setup.ts"]
