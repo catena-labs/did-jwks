@@ -1,6 +1,6 @@
 {
   "name": "did-jwks",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A DID method that enables JWKS endpoints to be used as DID identifiers",
   "keywords": [
     "did",
