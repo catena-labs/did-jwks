@@ -1,9 +1,9 @@
 # did:jwks Method Specification
 
-**Authors**: Catena Labs, Matt Venables
-**Latest version**: https://github.com/catena-labs/did-jwks/blob/main/spec.md
-**Reference implementation**: https://github.com/catena-labs/did-jwks
-**Status**: Draft
+- **Authors**: Catena Labs, Matt Venables
+- **Latest version**: https://github.com/catena-labs/did-jwks/blob/main/spec.md
+- **Reference implementation**: https://github.com/catena-labs/did-jwks
+- **Status**: Draft
 
 ## Introduction
 
