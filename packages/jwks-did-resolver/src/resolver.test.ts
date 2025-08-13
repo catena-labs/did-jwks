@@ -11,6 +11,7 @@ import accountsGoogleJwks from "@repo/test-utils/fixtures/accounts-google-jwks.j
 import appleidAppleOidc from "@repo/test-utils/fixtures/appleid-apple-oidc.json"
 import appleidAppleJwks from "@repo/test-utils/fixtures/appleid-apple-jwks.json"
 import tokenActionsGitHubJwks from "@repo/test-utils/fixtures/token-actions-githubusercontent-jwks.json"
+import exampleAuth0Jwks from "@repo/test-utils/fixtures/example-auth0-jwks.json"
 
 describe("Resolver", () => {
   afterEach(() => {
@@ -79,6 +80,20 @@ describe("Resolver", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1)
     expect(mockFetch).toHaveBeenCalledWith(
       "https://token.actions.githubusercontent.com/.well-known/jwks.json"
+    )
+    expectJwksDidDocument(did, doc.didDocument)
+  })
+
+  it("resolves did:jwks:example.auth0.com", async () => {
+    const mockFetch = mockFetchFn(exampleAuth0Jwks)
+
+    const did = "did:jwks:example.auth0.com"
+    const resolver = new Resolver(getResolver({ fetch: mockFetch }))
+    const doc = await resolver.resolve(did)
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.auth0.com/.well-known/jwks.json"
     )
     expectJwksDidDocument(did, doc.didDocument)
   })

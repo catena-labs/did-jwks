@@ -10,6 +10,7 @@ import accountsGoogleJwks from "@repo/test-utils/fixtures/accounts-google-jwks.j
 import appleidAppleOidc from "@repo/test-utils/fixtures/appleid-apple-oidc.json"
 import appleidAppleJwks from "@repo/test-utils/fixtures/appleid-apple-jwks.json"
 import tokenActionsGitHubJwks from "@repo/test-utils/fixtures/token-actions-githubusercontent-jwks.json"
+import exampleAuth0Jwks from "@repo/test-utils/fixtures/example-auth0-jwks.json"
 
 describe("fetchJwksDidDocument()", () => {
   afterEach(() => {
@@ -141,6 +142,59 @@ describe("fetchJwksDidDocument()", () => {
       "https://token.actions.githubusercontent.com/.well-known/jwks.json"
     )
     expectJwksDidDocument(did, doc)
+  })
+
+  it("resolves did:jwks:example.auth0.com", async () => {
+    const mockFetch = mockFetchFn(exampleAuth0Jwks)
+
+    const did = "did:jwks:example.auth0.com"
+    const doc = await fetchJwksDidDocument(did, {
+      fetch: mockFetch
+    })
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.auth0.com/.well-known/jwks.json"
+    )
+    expectJwksDidDocument(did, doc)
+  })
+
+  it("uses thumbprints for stable fragment identifiers", async () => {
+    const jwksWithMultipleKeys = {
+      keys: [
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "key-1",
+          n: "test-n-value-1",
+          e: "AQAB"
+        },
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "key-2",
+          n: "test-n-value-2",
+          e: "AQAB"
+        }
+      ]
+    }
+
+    const mockFetch = mockFetchFn(jwksWithMultipleKeys)
+    const did = "did:jwks:example.com"
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(doc).toBeTruthy()
+    if (!doc) return
+
+    // Should have 2 verification methods
+    expect(doc.verificationMethod).toHaveLength(2)
+
+    // All fragment IDs should use thumbprints, not kid values
+    doc.verificationMethod?.forEach((vm) => {
+      expect(vm.id).toMatch(/^did:jwks:example\.com#[A-Za-z0-9_-]+$/)
+      expect(vm.id).not.toContain("key-1")
+      expect(vm.id).not.toContain("key-2")
+    })
   })
 
   it("returns error when no JWKS found", async () => {

@@ -1,9 +1,9 @@
 # did:jwks Method Specification
 
 - **Authors**: Catena Labs, Matt Venables
-- **Latest version**: https://github.com/catena-labs/did-jwks/blob/main/spec.md
+- **Latest version**: https://github.com/catena-labs/did-jwks/blob/main/SPEC.md
 - **Reference implementation**: https://github.com/catena-labs/did-jwks
-- **Status**: Draft
+- **Status**: Submitted to W3C DID Extensions Registry
 
 ## Introduction
 
@@ -89,7 +89,8 @@ Construct the DID Document for _did_ as follows:
    - Set `id` to _did_
    - Set `@context` to `["https://www.w3.org/ns/did/v1"]`
    - For each key in JWKS `keys` array:
-     - Create verification method with `id: "{did}#{kid}"` (or `#{index}` if no `kid`)
+     - Generate RFC 7638 JWK thumbprint for stable fragment identifier
+     - Create verification method with `id: "{did}#{thumbprint}"`
      - Set `type: "JsonWebKey"`
      - Set `controller: {did}`
      - Set `publicKeyJwk` to the key (without redundant `kid`)
@@ -112,7 +113,24 @@ The security of `did:jwks` identifiers is bound to the security of DNS and TLS i
 
 ### Key Rotation and History
 
-JWKS key rotation removes old keys from the endpoint, but there is no mechanism to verify signatures created with previously valid keys. This limits the utility for long-term signature verification.
+JWKS key rotation removes old keys from the endpoint, but there is no mechanism to verify signatures created with previously valid keys. This creates a fundamental limitation:
+
+- **Short-lived tokens**: JWTs and other assertions should have short expiration times
+- **No historical verification**: Signatures cannot be verified after key rotation occurs
+- **Real-time validation**: Verification must happen while keys are still published in the JWKS
+
+This makes `did:jwks` appropriate for:
+
+- OAuth2/OIDC JWT validation
+- API authentication tokens
+- Short-lived verifiable presentations
+- Real-time webhook signature verification
+
+But **NOT appropriate for**:
+
+- Long-term verifiable credentials
+- Archival signature verification
+- Legal documents requiring long-term validity
 
 ### Network Availability
 
