@@ -75,7 +75,7 @@ export async function fetchJwksDidDocument(
     return null
   }
 
-  return createDidJwksDidDocument(did, jwks)
+  return await createDidJwksDidDocument(did, jwks)
 }
 
 /**

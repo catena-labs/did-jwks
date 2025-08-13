@@ -6,6 +6,7 @@ import type {
 } from "web-identity-schemas"
 import { DidDocumentSchema, UriSchema } from "web-identity-schemas/valibot"
 import { isDidWithMethod } from "web-identity-schemas/valibot"
+import { generateJwkThumbprint } from "./utils/jwk-thumbprint"
 export { isDid } from "web-identity-schemas/valibot"
 
 /**
@@ -33,40 +34,52 @@ type DidDocument = v.InferOutput<typeof MinimalDidDocumentSchema>
  * @param jwks - The JWKS.
  * @returns The DID document.
  */
-export function createDidJwksDidDocument(
+export async function createDidJwksDidDocument(
   did: Did<"jwks">,
   jwks: JsonWebKeySet
-): DidDocument {
-  const { verificationMethods, sigMethodIds, encMethodIds } = jwks.keys.reduce<{
-    verificationMethods: VerificationMethod[]
-    sigMethodIds: string[]
-    encMethodIds: string[]
-  }>(
-    (acc, { kid, use, ...publicKeyJwk }, index) => {
-      const keyId = kid ?? `key-${index}`
-      const id = `${did}#${keyId}` as const
-
-      acc.verificationMethods.push({
-        id,
-        type: "JsonWebKey",
-        controller: did,
-        publicKeyJwk
-      })
-
-      if (use === "enc") {
-        acc.encMethodIds.push(id)
-      } else {
-        acc.sigMethodIds.push(id)
+): Promise<DidDocument> {
+  const keysWithThumbprints = await Promise.all(
+    jwks.keys.map(async (key) => {
+      const { use } = key
+      const thumbprint = await generateJwkThumbprint(key)
+      return {
+        use,
+        publicKeyJwk: key,
+        thumbprint
       }
-
-      return acc
-    },
-    {
-      verificationMethods: [],
-      sigMethodIds: [],
-      encMethodIds: []
-    }
+    })
   )
+
+  const { verificationMethods, sigMethodIds, encMethodIds } =
+    keysWithThumbprints.reduce<{
+      verificationMethods: VerificationMethod[]
+      sigMethodIds: string[]
+      encMethodIds: string[]
+    }>(
+      (acc, { use, publicKeyJwk, thumbprint }) => {
+        const id = `${did}#${thumbprint}` as const
+
+        acc.verificationMethods.push({
+          id,
+          type: "JsonWebKey",
+          controller: did,
+          publicKeyJwk
+        })
+
+        if (use === "enc") {
+          acc.encMethodIds.push(id)
+        } else {
+          acc.sigMethodIds.push(id)
+        }
+
+        return acc
+      },
+      {
+        verificationMethods: [],
+        sigMethodIds: [],
+        encMethodIds: []
+      }
+    )
 
   return v.parse(MinimalDidDocumentSchema, {
     "@context": ["https://www.w3.org/ns/did/v1"],
