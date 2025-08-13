@@ -1,5 +1,16 @@
 # jwks-did-resolver
 
+## 1.0.0
+
+### Major Changes
+
+- f5220f6: Improve fragments, clearer documentation
+
+### Patch Changes
+
+- Updated dependencies [f5220f6]
+  - did-jwks@1.0.0
+
 ## 0.3.0
 
 ### Minor Changes

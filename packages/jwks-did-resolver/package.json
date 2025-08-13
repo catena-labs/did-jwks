@@ -1,6 +1,6 @@
 {
   "name": "jwks-did-resolver",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "Resolve did:jwks documents using did-resolver",
   "keywords": [
     "did",

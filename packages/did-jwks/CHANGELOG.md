@@ -1,5 +1,11 @@
 # did-jwks
 
+## 1.0.0
+
+### Major Changes
+
+- f5220f6: Improve fragments, clearer documentation
+
 ## 0.3.0
 
 ### Minor Changes
