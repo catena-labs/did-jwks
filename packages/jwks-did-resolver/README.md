@@ -111,4 +111,4 @@ switch (result.didResolutionMetadata.error) {
 
 ## License (MIT)
 
-Copyright (c) 2025 [Catena Labs, Inc](https://catenalabs.com). See [`LICENSE`](./LICENSE) for details.
+Copyright (c) 2026 [Catena Labs, Inc](https://catenalabs.com). See [`LICENSE`](./LICENSE) for details.
