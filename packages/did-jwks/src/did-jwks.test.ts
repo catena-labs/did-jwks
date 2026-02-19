@@ -46,7 +46,7 @@ describe("fetchJwksDidDocument()", () => {
     expectJwksDidDocument(did, doc)
   })
 
-  it("handles subdirectories", async () => {
+  it("handles subdirectories with direct path resolution", async () => {
     const mockFetch = mockFetchFn({
       keys: [
         {
@@ -66,11 +66,67 @@ describe("fetchJwksDidDocument()", () => {
       allowedHttpHosts: ["localhost"]
     })
 
-    // Verify the fetch was called with the expected URL
-    expect(mockFetch).toHaveBeenCalled()
+    // Path DIDs resolve to direct file paths, not .well-known
     expect(mockFetch).toHaveBeenCalledTimes(1)
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:3000/user/alice/.well-known/jwks.json"
+      "http://localhost:3000/user/alice/jwks.json"
+    )
+    expectJwksDidDocument(did, doc)
+  })
+
+  it("falls back to RFC 8414 discovery for path DIDs", async () => {
+    const jwksData = {
+      keys: [
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "test-key-1",
+          alg: "RS256",
+          n: "test-n-value",
+          e: "AQAB"
+        }
+      ]
+    }
+
+    const mockFetch = vi.fn((url: string) => {
+      // RFC 8414: .well-known inserted between origin and path
+      if (
+        url ===
+        "http://localhost:3000/.well-known/openid-configuration/user/alice"
+      ) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              jwks_uri: "http://localhost:3000/user/alice/keys"
+            })
+        })
+      }
+      if (url === "http://localhost:3000/user/alice/keys") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(jwksData)
+        })
+      }
+      return Promise.resolve({ ok: false, status: 404 })
+    }) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:localhost%3A3000:user:alice"
+    const doc = await fetchJwksDidDocument(did, {
+      fetch: mockFetch,
+      allowedHttpHosts: ["localhost"]
+    })
+
+    // Direct JWKS tried first
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://localhost:3000/user/alice/jwks.json"
+    )
+    // Then RFC 8414-style discovery
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://localhost:3000/.well-known/openid-configuration/user/alice"
+    )
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://localhost:3000/user/alice/keys"
     )
     expectJwksDidDocument(did, doc)
   })
