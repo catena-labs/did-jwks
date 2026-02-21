@@ -60,4 +60,23 @@ describe("generateJwkThumbprint()", () => {
 
     expect(thumbprint1).toBe(thumbprint2)
   })
+
+  it("handles symmetric (oct) keys properly", async () => {
+    const jwkMinimal = {
+      kty: "oct" as const,
+      k: "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
+    }
+
+    const jwkWithExtras = {
+      ...jwkMinimal,
+      use: "sig" as const,
+      kid: "symmetric-key",
+      alg: "HS256" as const
+    }
+
+    const thumbprint1 = await generateJwkThumbprint(jwkMinimal)
+    const thumbprint2 = await generateJwkThumbprint(jwkWithExtras)
+
+    expect(thumbprint1).toBe(thumbprint2)
+  })
 })

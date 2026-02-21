@@ -21,6 +21,11 @@ async function main() {
     allowedHttpHosts: ["localhost", "0.0.0.0"]
   })
 
+  if (!didDocument) {
+    console.error(`Error: Could not resolve DID ${did}`)
+    process.exit(1)
+  }
+
   console.log(JSON.stringify(didDocument, null, 2))
 }
 

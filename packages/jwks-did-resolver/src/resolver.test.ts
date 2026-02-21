@@ -133,6 +133,22 @@ describe("Resolver", () => {
     expectJwksDidDocument(did, doc.didDocument)
   })
 
+  it("returns error when fetch throws an exception", async () => {
+    const mockFetch = vi
+      .fn()
+      .mockRejectedValue(
+        new Error("Network timeout")
+      ) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:example.com"
+    const resolver = new Resolver(getResolver({ fetch: mockFetch }))
+    const doc = await resolver.resolve(did)
+
+    expect(doc.didDocument).toBeNull()
+    expect(doc.didResolutionMetadata.error).toBe("internalError")
+    expect(doc.didResolutionMetadata.message).toBe("Network timeout")
+  })
+
   it("returns error when no JWKS found", async () => {
     const mockFetch = mockFetchFn({})
 

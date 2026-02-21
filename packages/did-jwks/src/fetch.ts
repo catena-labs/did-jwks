@@ -119,6 +119,7 @@ function buildBaseUrl(
     .split(":")
     .map(decodeURIComponent)
     .join("/")
+    .replace(/\/+$/, "") // Strip trailing slashes in case of trailing colons
 
   const protocol = getProtocol(basePath, allowedHttpHosts)
   return `${protocol}://${basePath}`

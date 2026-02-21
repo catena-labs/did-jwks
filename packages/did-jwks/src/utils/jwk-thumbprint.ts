@@ -35,6 +35,8 @@ function getRequiredMembers(jwk: JsonWebKey): Record<string, unknown> {
       return { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y }
     case "OKP":
       return { kty: jwk.kty, crv: jwk.crv, x: jwk.x }
+    case "oct":
+      return { kty: jwk.kty, k: jwk.k }
     default:
       return jwk as unknown as Record<string, unknown>
   }

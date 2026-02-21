@@ -34,7 +34,20 @@ export function getResolver(opts: FetchJwksOptions = {}): {
       }
     }
 
-    const didDocument = await fetchJwksDidDocument(did, opts)
+    let didDocument
+    try {
+      didDocument = await fetchJwksDidDocument(did, opts)
+    } catch (e) {
+      return {
+        didDocument: null,
+        didDocumentMetadata: {},
+        didResolutionMetadata: {
+          error: "internalError",
+          message:
+            e instanceof Error ? e.message : "Unknown error fetching JWKS"
+        }
+      }
+    }
 
     if (!didDocument) {
       return {
