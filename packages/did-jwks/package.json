@@ -51,7 +51,7 @@
   "scripts": {
     "build": "tsdown src/index.ts src/cli.ts --out-dir dist --format esm",
     "clean": "git clean -xdf dist node_modules/.cache",
-    "cli": "pnpm run src/cli.ts",
+    "cli": "tsx src/cli.ts",
     "prepublishOnly": "pnpm run build",
     "publint": "npx publint@latest",
     "test": "vitest"
@@ -64,6 +64,7 @@
     "@repo/test-utils": "workspace:*",
     "standard-parse": "^0.3.0",
     "tsdown": "^0.12.9",
+    "tsx": "^4.21.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"
   }

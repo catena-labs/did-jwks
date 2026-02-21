@@ -3,7 +3,10 @@ import { isDidJwks } from "./did-jwks"
 import { fetchJwksDidDocument } from "./fetch"
 
 async function main() {
-  const args = process.argv.slice(2)
+  let args = process.argv.slice(2)
+  if (args[0] === "--") {
+    args = args.slice(1)
+  }
 
   if (args.length !== 1) {
     console.error("Usage: did-jwks <did>")
