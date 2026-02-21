@@ -2,38 +2,44 @@
   "name": "did-jwks",
   "description": "A DID method that enables JWKS endpoints to be used as DID identifiers",
   "keywords": [
-    "did",
+    "authentication",
+    "cryptography",
     "decentralized-identifier",
-    "jwks",
+    "did",
+    "did-jwks",
+    "did-method",
+    "did-resolver",
+    "identity",
     "json-web-key-set",
+    "json-web-token",
+    "jwks",
+    "jwt",
+    "key-discovery",
+    "oauth2",
     "oidc",
     "openid-connect",
-    "oauth2",
-    "jwt",
-    "json-web-token",
-    "verification",
-    "authentication",
-    "identity",
-    "resolver",
-    "did-resolver",
-    "did-method",
-    "did-jwks",
-    "cryptography",
     "public-key",
-    "key-discovery"
+    "resolver",
+    "verification"
   ],
   "homepage": "https://github.com/catena-labs/did-jwks#readme",
   "bugs": "https://github.com/catena-labs/did-jwks/issues",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/catena-labs/did-jwks.git"
-  },
   "license": "MIT",
   "author": {
     "name": "Catena Labs",
     "url": "https://catenalabs.com"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/catena-labs/did-jwks.git"
+  },
+  "bin": "./dist/cli.js",
+  "files": [
+    "dist"
+  ],
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
@@ -41,41 +47,30 @@
       "default": "./dist/index.js"
     }
   },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "bin": "./dist/cli.js",
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "pnpm run --filter='*' build",
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm test",
     "clean": "pnpm run --filter='*' clean; git clean -xdf node_modules/.cache",
     "cli": "pnpm --filter=./packages/did-jwks run cli",
     "fix": "pnpm run format && pnpm run lint:fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint . --fix --fix-suggestions",
     "nuke": "pnpm run clean && git clean -xdf node_modules",
     "outdated": "npx npm-check-updates --interactive --format group --workspaces",
     "publint": "pnpm run --filter='*' publint",
     "test": "pnpm --filter='*' test",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {},
   "devDependencies": {
     "@changesets/cli": "^2.29.5",
-    "@eslint/js": "^9.31.0",
     "@types/node": "^24",
-    "eslint": "^9.31.0",
-    "eslint-config-flat-gitignore": "^2.1.0",
-    "eslint-config-prettier": "^10.1.8",
-    "prettier": "^3.6.2",
-    "prettier-plugin-packagejson": "^2.5.19",
+    "oxfmt": "^0.34.0",
+    "oxlint": "^1.49.0",
+    "oxlint-tsgolint": "^0.14.2",
     "standard-parse": "^0.3.0",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.38.0",
     "vitest": "^3.2.4"
   },
   "packageManager": "pnpm@10.13.1"

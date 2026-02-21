@@ -6,6 +6,7 @@ import type {
 } from "web-identity-schemas"
 import { DidDocumentSchema, UriSchema } from "web-identity-schemas/valibot"
 import { isDidWithMethod } from "web-identity-schemas/valibot"
+
 import { generateJwkThumbprint } from "./utils/jwk-thumbprint"
 export { isDid } from "web-identity-schemas/valibot"
 

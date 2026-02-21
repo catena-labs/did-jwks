@@ -3,38 +3,44 @@
   "version": "1.0.0",
   "description": "A DID method that enables JWKS endpoints to be used as DID identifiers",
   "keywords": [
-    "did",
+    "authentication",
+    "cryptography",
     "decentralized-identifier",
-    "jwks",
+    "did",
+    "did-jwks",
+    "did-method",
+    "did-resolver",
+    "identity",
     "json-web-key-set",
+    "json-web-token",
+    "jwks",
+    "jwt",
+    "key-discovery",
+    "oauth2",
     "oidc",
     "openid-connect",
-    "oauth2",
-    "jwt",
-    "json-web-token",
-    "verification",
-    "authentication",
-    "identity",
-    "resolver",
-    "did-resolver",
-    "did-method",
-    "did-jwks",
-    "cryptography",
     "public-key",
-    "key-discovery"
+    "resolver",
+    "verification"
   ],
   "homepage": "https://github.com/catena-labs/did-jwks#readme",
   "bugs": "https://github.com/catena-labs/did-jwks/issues",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/catena-labs/did-jwks.git"
-  },
   "license": "MIT",
   "author": {
     "name": "Catena Labs",
     "url": "https://catenalabs.com"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/catena-labs/did-jwks.git"
+  },
+  "bin": "./dist/cli.js",
+  "files": [
+    "dist"
+  ],
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
@@ -42,12 +48,6 @@
       "default": "./dist/index.js"
     }
   },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "bin": "./dist/cli.js",
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "tsdown src/index.ts src/cli.ts --out-dir dist --format esm",
     "clean": "git clean -xdf dist node_modules/.cache",

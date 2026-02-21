@@ -1,8 +1,9 @@
-import { OpenIDConfigurationSchema } from "./utils/schemas"
 import type { Did, JsonWebKeySet } from "web-identity-schemas"
 import { JsonWebKeySetSchema } from "web-identity-schemas/valibot"
-import { fetchWithSchema } from "./utils/fetch-with-schema"
+
 import { createDidJwksDidDocument } from "./did-jwks"
+import { fetchWithSchema } from "./utils/fetch-with-schema"
+import { OpenIDConfigurationSchema } from "./utils/schemas"
 
 interface ResolutionUrls {
   readonly jwks: string

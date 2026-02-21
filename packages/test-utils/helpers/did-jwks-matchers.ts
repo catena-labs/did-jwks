@@ -1,10 +1,10 @@
-import type { Did } from "web-identity-schemas"
+import * as s from "standard-parse"
 import { expect } from "vitest"
+import type { Did } from "web-identity-schemas"
 import {
   DidDocumentSchema,
   VerificationMethodJsonWebKeySchema
 } from "web-identity-schemas/valibot"
-import * as s from "standard-parse"
 
 export function expectJwksDidDocument(did: Did<"jwks">, didDocument: unknown) {
   expect(didDocument).toBeDefined()

@@ -1,6 +1,6 @@
-import type { DIDResolutionResult, DIDResolver } from "did-resolver"
 import { isDidJwks, fetchJwksDidDocument } from "did-jwks"
 import type { FetchJwksOptions } from "did-jwks"
+import type { DIDResolutionResult, DIDResolver } from "did-resolver"
 
 /**
  * Get a `did-resolver` compatible resolver for did:jwks

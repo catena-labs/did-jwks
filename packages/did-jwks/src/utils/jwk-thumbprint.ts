@@ -14,7 +14,7 @@ export async function generateJwkThumbprint(jwk: JsonWebKey): Promise<string> {
   // RFC 7638 requires lexicographic ordering of JSON keys
   const jwkJson = JSON.stringify(
     requiredMembers,
-    Object.keys(requiredMembers).sort()
+    Object.keys(requiredMembers).toSorted()
   )
 
   // Hash with SHA-256 and convert to base64url

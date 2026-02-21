@@ -1,17 +1,18 @@
-import { expect, describe, it, vi, afterEach } from "vitest"
-import { getResolver } from "./resolver"
-import { Resolver } from "did-resolver"
 import {
   createMockOidcHost,
   expectJwksDidDocument,
   mockFetchFn
 } from "@repo/test-utils"
-import accountsGoogleOidc from "@repo/test-utils/fixtures/accounts-google-oidc.json"
 import accountsGoogleJwks from "@repo/test-utils/fixtures/accounts-google-jwks.json"
-import appleidAppleOidc from "@repo/test-utils/fixtures/appleid-apple-oidc.json"
+import accountsGoogleOidc from "@repo/test-utils/fixtures/accounts-google-oidc.json"
 import appleidAppleJwks from "@repo/test-utils/fixtures/appleid-apple-jwks.json"
-import tokenActionsGitHubJwks from "@repo/test-utils/fixtures/token-actions-githubusercontent-jwks.json"
+import appleidAppleOidc from "@repo/test-utils/fixtures/appleid-apple-oidc.json"
 import exampleAuth0Jwks from "@repo/test-utils/fixtures/example-auth0-jwks.json"
+import tokenActionsGitHubJwks from "@repo/test-utils/fixtures/token-actions-githubusercontent-jwks.json"
+import { Resolver } from "did-resolver"
+import { expect, describe, it, vi, afterEach } from "vitest"
+
+import { getResolver } from "./resolver"
 
 describe("Resolver", () => {
   afterEach(() => {

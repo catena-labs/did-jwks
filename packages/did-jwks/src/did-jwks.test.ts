@@ -1,16 +1,17 @@
-import { describe, it, expect, vi, afterEach } from "vitest"
-import { fetchJwksDidDocument } from "./fetch"
 import {
   createMockOidcHost,
   expectJwksDidDocument,
   mockFetchFn
 } from "@repo/test-utils"
-import accountsGoogleOidc from "@repo/test-utils/fixtures/accounts-google-oidc.json"
 import accountsGoogleJwks from "@repo/test-utils/fixtures/accounts-google-jwks.json"
-import appleidAppleOidc from "@repo/test-utils/fixtures/appleid-apple-oidc.json"
+import accountsGoogleOidc from "@repo/test-utils/fixtures/accounts-google-oidc.json"
 import appleidAppleJwks from "@repo/test-utils/fixtures/appleid-apple-jwks.json"
-import tokenActionsGitHubJwks from "@repo/test-utils/fixtures/token-actions-githubusercontent-jwks.json"
+import appleidAppleOidc from "@repo/test-utils/fixtures/appleid-apple-oidc.json"
 import exampleAuth0Jwks from "@repo/test-utils/fixtures/example-auth0-jwks.json"
+import tokenActionsGitHubJwks from "@repo/test-utils/fixtures/token-actions-githubusercontent-jwks.json"
+import { describe, it, expect, vi, afterEach } from "vitest"
+
+import { fetchJwksDidDocument } from "./fetch"
 
 describe("fetchJwksDidDocument()", () => {
   afterEach(() => {
@@ -240,7 +241,9 @@ describe("fetchJwksDidDocument()", () => {
     const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
 
     expect(doc).toBeTruthy()
-    if (!doc) return
+    if (!doc) {
+      return
+    }
 
     // Should have 2 verification methods
     expect(doc.verificationMethod).toHaveLength(2)

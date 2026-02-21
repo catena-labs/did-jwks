@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest"
+
 import { generateJwkThumbprint } from "./jwk-thumbprint"
 
 describe("generateJwkThumbprint()", () => {
