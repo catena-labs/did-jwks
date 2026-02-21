@@ -1,5 +1,16 @@
 # jwks-did-resolver
 
+## 1.1.0
+
+### Minor Changes
+
+- e7a163a: Update path-based resolution to conform to RFC 8615 and RFC 8414
+
+### Patch Changes
+
+- Updated dependencies [e7a163a]
+  - did-jwks@1.1.0
+
 ## 1.0.0
 
 ### Major Changes
