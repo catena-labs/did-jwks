@@ -47,9 +47,15 @@ Like `did:web`, colons (`:`) in the path are converted to forward slashes (`/`) 
 ### Resolution Algorithm
 
 1. **Parse Path**: Convert colons (`:`) in the path to forward slashes (`/`)
-1. **Direct JWKS**: Try `https://{domain}{/path}/.well-known/jwks.json`
-1. **OAuth2/OIDC Discovery**: If direct fails, fetch `https://{domain}{/path}/.well-known/openid-configuration` and extract `jwks_uri`
+1. **Fetch JWKS** (varies by DID type):
+   - **Root DIDs** (no path): Try `https://{domain}/.well-known/jwks.json`
+   - **Path DIDs**: Try `https://{domain}/{path}/jwks.json`
+1. **OAuth2/OIDC Discovery** (if JWKS not found):
+   - **Root DIDs**: Fetch `https://{domain}/.well-known/openid-configuration` and extract `jwks_uri`
+   - **Path DIDs**: Per [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414), fetch `https://{domain}/.well-known/openid-configuration/{path}` and extract `jwks_uri`
 1. **Transform**: Convert JWKS to DID document format
+
+> **Note**: Per [RFC 8615](https://www.rfc-editor.org/rfc/rfc8615), `.well-known` URIs are only defined at the root of the path hierarchy. Root DIDs use standard `.well-known` paths. Path DIDs use direct file paths for JWKS and [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414)-style discovery for OAuth2/OIDC metadata, where `.well-known` is inserted between the origin and path to remain at the root.
 
 ### Examples
 
@@ -59,8 +65,8 @@ Like `did:web`, colons (`:`) in the path are converted to forward slashes (`/`) 
 |    Google     |         `did:jwks:accounts.google.com`         | `https://www.googleapis.com/oauth2/v3/certs` (via discovery) |
 |    GitHub     | `did:jwks:token.actions.githubusercontent.com` |                OAuth2 discovery → `jwks_uri`                 |
 | Corporate SSO |           `did:jwks:sso.company.com`           |       `https://sso.company.com/.well-known/jwks.json`        |
-| With Subpath  |         `did:jwks:example.com:api:v1`          |      `https://example.com/api/v1/.well-known/jwks.json`      |
-|  Tenant Path  |     `did:jwks:auth.example.com:tenant123`      |  `https://auth.example.com/tenant123/.well-known/jwks.json`  |
+| With Subpath  |         `did:jwks:example.com:api:v1`          |            `https://example.com/api/v1/jwks.json`            |
+|  Tenant Path  |     `did:jwks:auth.example.com:tenant123`      |        `https://auth.example.com/tenant123/jwks.json`        |
 
 ## Operations
 
@@ -82,9 +88,12 @@ Construct the DID Document for _did_ as follows:
 1. Parse the DID to extract _domain_ and optional _path_ according to syntax above
 1. Convert colons (`:`) in _path_ to forward slashes (`/`) to form the URL path
 1. **Fetch JWKS**:
-   - Try `https://{domain}{/path}/.well-known/jwks.json`
-   - If 404, fetch `https://{domain}{/path}/.well-known/openid-configuration`
-   - Extract `jwks_uri` and fetch from that endpoint
+   - **Root DIDs** (no path): Try `https://{domain}/.well-known/jwks.json`
+   - **Path DIDs**: Try `https://{domain}/{path}/jwks.json`
+   - If JWKS is not found, attempt **OAuth2/OIDC Discovery**:
+     - **Root DIDs**: Fetch `https://{domain}/.well-known/openid-configuration`
+     - **Path DIDs**: Per RFC 8414, fetch `https://{domain}/.well-known/openid-configuration/{path}`
+   - Extract `jwks_uri` from the discovery document and fetch from that endpoint
 1. **Generate DID Document**:
    - Set `id` to _did_
    - Set `@context` to `["https://www.w3.org/ns/did/v1"]`
@@ -93,7 +102,7 @@ Construct the DID Document for _did_ as follows:
      - Create verification method with `id: "{did}#{thumbprint}"`
      - Set `type: "JsonWebKey"`
      - Set `controller: {did}`
-     - Set `publicKeyJwk` to the key (without redundant `kid`)
+     - Set `publicKeyJwk` to the key
    - Populate `assertionMethod` and `authentication` with keys where `use: "sig"` (default if unspecified)
    - Populate `keyAgreement` with keys where `use: "enc"`
 
@@ -267,7 +276,9 @@ The following test vectors demonstrate resolution for major OAuth2 providers:
 
 - [RFC 7517 - JSON Web Key (JWK)](https://tools.ietf.org/html/rfc7517)
 - [RFC 7518 - JSON Web Algorithms (JWA)](https://tools.ietf.org/html/rfc7518)
+- [RFC 7638 - JSON Web Key (JWK) Thumbprint](https://tools.ietf.org/html/rfc7638)
 - [RFC 8414 - OAuth 2.0 Authorization Server Metadata](https://tools.ietf.org/html/rfc8414)
+- [RFC 8615 - Well-Known Uniform Resource Identifiers](https://tools.ietf.org/html/rfc8615)
 - [OpenID Connect Discovery 1.0](https://openid.net/specs/openid-connect-discovery-1_0.html)
 - [DID Core v1.0](https://www.w3.org/TR/did-core/)
 - [DID Specification Registries](https://www.w3.org/TR/did-spec-registries/)

@@ -98,6 +98,40 @@ describe("Resolver", () => {
     expectJwksDidDocument(did, doc.didDocument)
   })
 
+  it("resolves path-based DID through direct file path", async () => {
+    const jwksData = {
+      keys: [
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "tenant-key-1",
+          alg: "RS256",
+          n: "test-n-value",
+          e: "AQAB"
+        }
+      ]
+    }
+
+    const mockFetch = vi.fn((url: string) => {
+      if (url === "https://auth.example.com/tenant123/jwks.json") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(jwksData)
+        })
+      }
+      return Promise.resolve({ ok: false, status: 404 })
+    }) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:auth.example.com:tenant123"
+    const resolver = new Resolver(getResolver({ fetch: mockFetch }))
+    const doc = await resolver.resolve(did)
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://auth.example.com/tenant123/jwks.json"
+    )
+    expectJwksDidDocument(did, doc.didDocument)
+  })
+
   it("returns error when no JWKS found", async () => {
     const mockFetch = mockFetchFn({})
 

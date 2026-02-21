@@ -4,9 +4,35 @@ import { JsonWebKeySetSchema } from "web-identity-schemas/valibot"
 import { fetchWithSchema } from "./utils/fetch-with-schema"
 import { createDidJwksDidDocument } from "./did-jwks"
 
-const jwksUrl = (base: string) => `${base}/.well-known/jwks.json`
-const openidConfigurationUrl = (base: string) =>
-  `${base}/.well-known/openid-configuration`
+interface ResolutionUrls {
+  readonly jwks: string
+  readonly openidConfiguration: string
+}
+
+/**
+ * Build JWKS and OIDC discovery URLs based on whether the DID contains a path.
+ *
+ * Root DIDs use `.well-known` exclusively (RFC 8615 compliant).
+ * Path DIDs use direct file paths for JWKS and RFC 8414-style discovery
+ * where `.well-known/openid-configuration` is inserted between the origin and path.
+ */
+function buildResolutionUrls(base: string): ResolutionUrls {
+  const url = new URL(base)
+  const hasPath = url.pathname !== "/" && url.pathname !== ""
+
+  if (hasPath) {
+    const path = url.pathname.replace(/^\/+|\/+$/g, "")
+    return {
+      jwks: `${base}/jwks.json`,
+      openidConfiguration: `${url.origin}/.well-known/openid-configuration/${path}`
+    }
+  }
+
+  return {
+    jwks: `${base}/.well-known/jwks.json`,
+    openidConfiguration: `${base}/.well-known/openid-configuration`
+  }
+}
 
 export interface FetchJwksOptions {
   /**
@@ -29,34 +55,28 @@ export async function fetchJwks(
   opts: FetchJwksOptions = {}
 ): Promise<JsonWebKeySet | null> {
   const base = buildBaseUrl(did, opts.allowedHttpHosts)
+  const urls = buildResolutionUrls(base)
 
-  let jwks = await fetchWithSchema(
-    jwksUrl(base),
-    JsonWebKeySetSchema,
-    opts.fetch
-  )
-
+  const jwks = await fetchWithSchema(urls.jwks, JsonWebKeySetSchema, opts.fetch)
   if (jwks) {
     return jwks
   }
 
-  // If that fails, try OpenID configuration
+  // If JWKS fetch fails, try OpenID configuration discovery
   const openidConfig = await fetchWithSchema(
-    openidConfigurationUrl(base),
+    urls.openidConfiguration,
     OpenIDConfigurationSchema,
     opts.fetch
   )
-  if (!openidConfig?.jwks_uri) {
-    return null
+  if (openidConfig?.jwks_uri) {
+    return await fetchWithSchema(
+      openidConfig.jwks_uri,
+      JsonWebKeySetSchema,
+      opts.fetch
+    )
   }
 
-  jwks = await fetchWithSchema(
-    openidConfig.jwks_uri,
-    JsonWebKeySetSchema,
-    opts.fetch
-  )
-
-  return jwks
+  return null
 }
 
 /**
@@ -79,15 +99,15 @@ export async function fetchJwksDidDocument(
 }
 
 /**
- * Build a base path from a full `did:jwks` URI.
+ * Build a base URL from a full `did:jwks` URI.
  *
  * @example
  * ```
- * const base = buildBasePath("did:jwks:accounts.google.com:matt");
- * // base === "accounts.google.com/matt"
+ * const base = buildBaseUrl("did:jwks:accounts.google.com:matt");
+ * // base === "https://accounts.google.com/matt"
  * ```
  *
- * @returns The base path
+ * @returns The base URL
  */
 function buildBaseUrl(
   did: Did<"jwks">,
@@ -110,10 +130,8 @@ function getProtocol(
   const [host] = path.split("/")
 
   if (host) {
-    const [hostWithoutPort] = host.split(":")
-    return allowedHttpHosts.some((host) => host === hostWithoutPort)
-      ? "http"
-      : "https"
+    const hostWithoutPort = host.split(":")[0] ?? host
+    return allowedHttpHosts.includes(hostWithoutPort) ? "http" : "https"
   }
 
   return "https"
