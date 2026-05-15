@@ -287,4 +287,20 @@ describe("fetchJwksDidDocument()", () => {
       "https://example.com/.well-known/openid-configuration"
     )
   })
+
+  it("rethrows non-syntax JSON read failures", async () => {
+    const error = new Error("body stream aborted")
+    const mockFetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.reject(error)
+      })
+    ) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:example.com"
+
+    await expect(
+      fetchJwksDidDocument(did, { fetch: mockFetch })
+    ).rejects.toThrow("body stream aborted")
+  })
 })

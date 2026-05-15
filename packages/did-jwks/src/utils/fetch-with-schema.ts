@@ -21,8 +21,11 @@ export async function fetchWithSchema<T extends v.GenericSchema>(
   let json: unknown
   try {
     json = await resp.json()
-  } catch {
-    return null
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return null
+    }
+    throw error
   }
 
   const result = v.safeParse(schema, json)
