@@ -294,6 +294,23 @@ describe("fetchJwksDidDocument()", () => {
     expect(JSON.stringify(doc)).not.toContain("secret")
   })
 
+  it("returns null when JWKS contains no public keys", async () => {
+    const mockFetch = mockFetchFn({
+      keys: [
+        {
+          kty: "oct",
+          kid: "symmetric-secret",
+          k: "secret"
+        }
+      ]
+    })
+
+    const did = "did:jwks:example.com"
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(doc).toBeNull()
+  })
+
   it("returns error when no JWKS found", async () => {
     const mockFetch = mockFetchFn({})
 

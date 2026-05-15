@@ -33,13 +33,17 @@ type DidDocument = v.InferOutput<typeof MinimalDidDocumentSchema>
  *
  * @param didUri - The DID URI.
  * @param jwks - The JWKS.
- * @returns The DID document.
+ * @returns The DID document or `null` if the JWKS has no public keys.
  */
 export async function createDidJwksDidDocument(
   did: Did<"jwks">,
   jwks: JsonWebKeySet
-): Promise<DidDocument> {
+): Promise<DidDocument | null> {
   const publicKeys = jwks.keys.filter((key) => key.kty !== "oct")
+  if (publicKeys.length === 0) {
+    return null
+  }
+
   const keysWithThumbprints = await Promise.all(
     publicKeys.map(async (key) => {
       const { use } = key
