@@ -70,6 +70,10 @@ export async function fetchJwks(
     opts.fetch
   )
   if (openidConfig?.jwks_uri) {
+    if (!isAllowedFetchUrl(openidConfig.jwks_uri, opts.allowedHttpHosts)) {
+      return null
+    }
+
     return await fetchWithSchema(
       openidConfig.jwks_uri,
       JsonWebKeySetSchema,
@@ -137,4 +141,21 @@ function getProtocol(
   }
 
   return "https"
+}
+
+function isAllowedFetchUrl(
+  url: string,
+  allowedHttpHosts: string[] = []
+): boolean {
+  const parsed = new URL(url)
+  if (parsed.protocol === "https:") {
+    return true
+  }
+
+  if (parsed.protocol !== "http:") {
+    return false
+  }
+
+  const hostWithoutPort = parsed.hostname.split(":")[0] ?? parsed.hostname
+  return allowedHttpHosts.includes(hostWithoutPort)
 }

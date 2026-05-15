@@ -132,6 +132,36 @@ describe("fetchJwksDidDocument()", () => {
     expectJwksDidDocument(did, doc)
   })
 
+  it("does not fetch http jwks_uri values from OIDC discovery unless the host is allowed", async () => {
+    const mockFetch = vi.fn((url: string) => {
+      if (url === "https://example.com/.well-known/openid-configuration") {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              jwks_uri: "http://example.com/keys"
+            })
+        })
+      }
+
+      return Promise.resolve({ ok: false, status: 404 })
+    }) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:example.com"
+    const doc = await fetchJwksDidDocument(did, {
+      fetch: mockFetch
+    })
+
+    expect(doc).toBeNull()
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/.well-known/jwks.json"
+    )
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/.well-known/openid-configuration"
+    )
+    expect(mockFetch).not.toHaveBeenCalledWith("http://example.com/keys")
+  })
+
   it("resolves did:jwks:accounts.google.com", async () => {
     const mockFetch = createMockOidcHost({
       jwks: accountsGoogleJwks,
