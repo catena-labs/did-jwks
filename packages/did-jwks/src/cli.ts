@@ -2,15 +2,24 @@
 import { isDidJwks } from "./did-jwks"
 import { fetchJwksDidDocument } from "./fetch"
 
+const USAGE = "Usage: did-jwks <did>"
+const EXAMPLE = "Example: did-jwks did:jwks:accounts.google.com"
+
 async function main() {
   let args = process.argv.slice(2)
   if (args[0] === "--") {
     args = args.slice(1)
   }
 
+  if (args[0] === "--help" || args[0] === "-h") {
+    console.log(USAGE)
+    console.log(EXAMPLE)
+    process.exit(0)
+  }
+
   if (args.length !== 1) {
-    console.error("Usage: did-jwks <did>")
-    console.error("Example: did-jwks did:jwks:accounts.google.com")
+    console.error(USAGE)
+    console.error(EXAMPLE)
     process.exit(1)
   }
 
