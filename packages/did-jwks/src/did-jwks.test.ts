@@ -256,6 +256,44 @@ describe("fetchJwksDidDocument()", () => {
     })
   })
 
+  it("does not expose symmetric keys as verification methods", async () => {
+    const mockFetch = mockFetchFn({
+      keys: [
+        {
+          kty: "oct",
+          kid: "symmetric-secret",
+          k: "secret"
+        },
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "public-key",
+          n: "test-n-value",
+          e: "AQAB"
+        }
+      ]
+    })
+
+    const did = "did:jwks:example.com"
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(doc).toBeTruthy()
+    if (!doc) {
+      return
+    }
+
+    expect(doc.verificationMethod).toHaveLength(1)
+    expect(doc.verificationMethod?.[0]).toMatchObject({
+      type: "JsonWebKey",
+      publicKeyJwk: {
+        kty: "RSA",
+        kid: "public-key"
+      }
+    })
+    expect(JSON.stringify(doc)).not.toContain("symmetric-secret")
+    expect(JSON.stringify(doc)).not.toContain("secret")
+  })
+
   it("returns error when no JWKS found", async () => {
     const mockFetch = mockFetchFn({})
 

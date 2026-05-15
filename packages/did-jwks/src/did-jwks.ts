@@ -39,8 +39,9 @@ export async function createDidJwksDidDocument(
   did: Did<"jwks">,
   jwks: JsonWebKeySet
 ): Promise<DidDocument> {
+  const publicKeys = jwks.keys.filter((key) => key.kty !== "oct")
   const keysWithThumbprints = await Promise.all(
-    jwks.keys.map(async (key) => {
+    publicKeys.map(async (key) => {
       const { use } = key
       const thumbprint = await generateJwkThumbprint(key)
       return {
