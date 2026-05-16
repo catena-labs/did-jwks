@@ -100,6 +100,10 @@ function supportsAccept(accept?: string): boolean {
 
   return accept.split(",").some((value) => {
     const [mediaType] = value.trim().split(";")
-    return mediaType === DID_JWKS_CONTENT_TYPE || mediaType === "*/*"
+    return (
+      mediaType === DID_JWKS_CONTENT_TYPE ||
+      mediaType === "application/*" ||
+      mediaType === "*/*"
+    )
   })
 }

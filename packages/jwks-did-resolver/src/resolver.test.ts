@@ -149,6 +149,22 @@ describe("Resolver", () => {
     expect(doc.didResolutionMetadata.message).toContain("application/did+cbor")
   })
 
+  it("supports application wildcard accept values", async () => {
+    const mockFetch = mockFetchFn(exampleAuth0Jwks)
+
+    const did = "did:jwks:example.auth0.com"
+    const resolver = new Resolver(getResolver({ fetch: mockFetch }))
+    const doc = await resolver.resolve(did, {
+      accept: "application/*"
+    })
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expectJwksDidDocument(did, doc.didDocument)
+    expect(doc.didResolutionMetadata.contentType).toBe(
+      "application/did+ld+json"
+    )
+  })
+
   it("returns error when fetch throws an exception", async () => {
     const mockFetch = vi
       .fn()
