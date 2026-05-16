@@ -1,6 +1,14 @@
 import { isDidJwks, fetchJwksDidDocument } from "did-jwks"
 import type { FetchJwksOptions } from "did-jwks"
-import type { DIDResolutionResult, DIDResolver } from "did-resolver"
+import type {
+  DIDResolutionOptions,
+  DIDResolutionResult,
+  DIDResolver,
+  ParsedDID,
+  Resolvable
+} from "did-resolver"
+
+const DID_JWKS_CONTENT_TYPE = "application/did+ld+json"
 
 /**
  * Get a `did-resolver` compatible resolver for did:jwks
@@ -17,7 +25,12 @@ import type { DIDResolutionResult, DIDResolver } from "did-resolver"
 export function getResolver(opts: FetchJwksOptions = {}): {
   jwks: DIDResolver
 } {
-  async function resolve(did: string): Promise<DIDResolutionResult> {
+  async function resolve(
+    did: string,
+    _parsed: ParsedDID,
+    _resolver: Resolvable,
+    options: DIDResolutionOptions = {}
+  ): Promise<DIDResolutionResult> {
     if (!did) {
       return {
         didDocument: null,
@@ -31,6 +44,17 @@ export function getResolver(opts: FetchJwksOptions = {}): {
         didDocument: null,
         didDocumentMetadata: {},
         didResolutionMetadata: { error: "unsupportedDidMethod" }
+      }
+    }
+
+    if (!supportsAccept(options.accept)) {
+      return {
+        didDocument: null,
+        didDocumentMetadata: {},
+        didResolutionMetadata: {
+          error: "representationNotSupported",
+          message: `Unsupported DID representation: ${options.accept}`
+        }
       }
     }
 
@@ -60,11 +84,22 @@ export function getResolver(opts: FetchJwksOptions = {}): {
     return {
       didDocument,
       didDocumentMetadata: {},
-      didResolutionMetadata: { contentType: "application/did+ld+json" }
+      didResolutionMetadata: { contentType: DID_JWKS_CONTENT_TYPE }
     }
   }
 
   return {
     jwks: resolve
   }
+}
+
+function supportsAccept(accept?: string): boolean {
+  if (!accept) {
+    return true
+  }
+
+  return accept.split(",").some((value) => {
+    const [mediaType] = value.trim().split(";")
+    return mediaType === DID_JWKS_CONTENT_TYPE || mediaType === "*/*"
+  })
 }

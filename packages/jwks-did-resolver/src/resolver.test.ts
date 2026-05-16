@@ -133,6 +133,22 @@ describe("Resolver", () => {
     expectJwksDidDocument(did, doc.didDocument)
   })
 
+  it("returns representationNotSupported for unsupported accept values", async () => {
+    const mockFetch = vi.fn() as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:example.com"
+    const resolver = new Resolver(getResolver({ fetch: mockFetch }))
+    const doc = await resolver.resolve(did, {
+      accept: "application/did+cbor"
+    })
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(doc.didDocument).toBeNull()
+    expect(doc.didDocumentMetadata).toEqual({})
+    expect(doc.didResolutionMetadata.error).toBe("representationNotSupported")
+    expect(doc.didResolutionMetadata.message).toContain("application/did+cbor")
+  })
+
   it("returns error when fetch throws an exception", async () => {
     const mockFetch = vi
       .fn()
