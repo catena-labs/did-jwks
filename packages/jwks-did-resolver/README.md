@@ -103,8 +103,8 @@ switch (result.didResolutionMetadata.error) {
   case "notFound":
     // JWKS endpoint not found
     break
-  case "representationNotSupported":
-    // Invalid accept header
+  case "internalError":
+    // Error fetching or processing JWKS
     break
 }
 ```
