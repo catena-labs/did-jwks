@@ -84,8 +84,10 @@ const jwksResult = await resolver.resolve("did:jwks:example.com")
 
 1. **Parse DID**: Extracts domain and path components
 2. **JWKS Discovery**:
-   - Direct: `https://domain{/path}/.well-known/jwks.json`
-   - OAuth2 Discovery: `https://domain{/path}/.well-known/openid-configuration`
+   - Root DID direct lookup: `https://domain/.well-known/jwks.json`
+   - Path DID direct lookup: `https://domain/{path}/jwks.json`
+   - Root DID OAuth2 discovery: `https://domain/.well-known/openid-configuration`
+   - Path DID OAuth2 discovery: `https://domain/.well-known/openid-configuration/{path}`
 3. **Transform**: Converts JWKS to DID verification methods
 4. **Return**: Standard DID Resolution result
 

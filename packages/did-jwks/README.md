@@ -43,8 +43,10 @@ console.log(didDocument)
 
 1. **Parse DID**: Extracts domain and optional path from the DID
 2. **JWKS Discovery**: Attempts to fetch JWKS from:
-   - Direct: `https://domain/.well-known/jwks.json`
-   - OAuth2 Discovery: `https://domain/.well-known/openid-configuration`
+   - Root DID direct lookup: `https://domain/.well-known/jwks.json`
+   - Path DID direct lookup: `https://domain/{path}/jwks.json`
+   - Root DID OAuth2 discovery: `https://domain/.well-known/openid-configuration`
+   - Path DID OAuth2 discovery: `https://domain/.well-known/openid-configuration/{path}`
 3. **Transform**: Converts JWKS keys to DID verification methods
 4. **Generate**: Creates a standard DID document
 
@@ -72,7 +74,7 @@ const result = await fetchJwksDidDocument(
 const result = await fetchJwksDidDocument(
   "did:jwks:auth.example.com:tenant:123"
 )
-// Resolves to https://auth.example.com/tenant/123/.well-known/jwks.json
+// Resolves to https://auth.example.com/tenant/123/jwks.json
 ```
 
 ## License (MIT)
