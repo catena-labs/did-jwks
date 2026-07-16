@@ -43,8 +43,9 @@ export interface FetchJwksOptions {
    */
   fetch?: typeof globalThis.fetch
   /**
-   * The hosts that are allowed to be used via `http`. All other hosts will
-   * require `https`.  This is useful for local development and testing.
+   * The hosts that are allowed to be used via `http`. All other hosts require
+   * `https`. Discovered HTTP JWKS URLs must also match the DID's hostname. This
+   * is useful for local development and testing.
    *
    * @default []
    */
@@ -56,6 +57,7 @@ export async function fetchJwks(
   opts: FetchJwksOptions = {}
 ): Promise<JsonWebKeySet | null> {
   const base = buildBaseUrl(did, opts.allowedHttpHosts)
+  const baseHostname = new URL(base).hostname
   const urls = buildResolutionUrls(base)
 
   const jwks = await fetchWithSchema(urls.jwks, JsonWebKeySetSchema, opts.fetch)
@@ -70,7 +72,13 @@ export async function fetchJwks(
     opts.fetch
   )
   if (openidConfig?.jwks_uri) {
-    if (!isAllowedFetchUrl(openidConfig.jwks_uri, opts.allowedHttpHosts)) {
+    if (
+      !isAllowedFetchUrl(
+        openidConfig.jwks_uri,
+        baseHostname,
+        opts.allowedHttpHosts
+      )
+    ) {
       return null
     }
 
@@ -133,18 +141,13 @@ function getProtocol(
   path: string,
   allowedHttpHosts: string[] = []
 ): "http" | "https" {
-  const [host] = path.split("/")
-
-  if (host) {
-    const hostWithoutPort = host.split(":")[0] ?? host
-    return allowedHttpHosts.includes(hostWithoutPort) ? "http" : "https"
-  }
-
-  return "https"
+  const hostname = new URL(`https://${path}`).hostname
+  return isAllowedHttpHost(hostname, allowedHttpHosts) ? "http" : "https"
 }
 
 function isAllowedFetchUrl(
   url: string,
+  didHostname: string,
   allowedHttpHosts: string[] = []
 ): boolean {
   const parsed = new URL(url)
@@ -156,6 +159,15 @@ function isAllowedFetchUrl(
     return false
   }
 
-  const hostWithoutPort = parsed.hostname.split(":")[0] ?? parsed.hostname
-  return allowedHttpHosts.includes(hostWithoutPort)
+  return (
+    parsed.hostname === didHostname &&
+    isAllowedHttpHost(parsed.hostname, allowedHttpHosts)
+  )
+}
+
+function isAllowedHttpHost(
+  hostname: string,
+  allowedHttpHosts: string[] = []
+): boolean {
+  return allowedHttpHosts.includes(hostname)
 }
