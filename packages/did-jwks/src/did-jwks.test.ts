@@ -267,4 +267,40 @@ describe("fetchJwksDidDocument()", () => {
 
     expect(doc).toBeNull()
   })
+
+  it("returns null when JWKS and discovery responses are invalid JSON", async () => {
+    const mockFetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.reject(new SyntaxError("Unexpected token"))
+      })
+    ) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:example.com"
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(doc).toBeNull()
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/.well-known/jwks.json"
+    )
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/.well-known/openid-configuration"
+    )
+  })
+
+  it("rethrows non-syntax JSON read failures", async () => {
+    const error = new Error("body stream aborted")
+    const mockFetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.reject(error)
+      })
+    ) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:example.com"
+
+    await expect(
+      fetchJwksDidDocument(did, { fetch: mockFetch })
+    ).rejects.toThrow("body stream aborted")
+  })
 })
