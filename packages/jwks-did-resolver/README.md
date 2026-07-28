@@ -101,10 +101,10 @@ const result = await resolver.resolve("did:jwks:invalid.domain")
 
 switch (result.didResolutionMetadata.error) {
   case "invalidDid":
-    // Empty or syntactically invalid DID
+    // Empty DID string
     break
   case "unsupportedDidMethod":
-    // DID method is not did:jwks
+    // DID is not did:jwks (including non-jwks methods)
     break
   case "notFound":
     // JWKS endpoint not found / could not be resolved
@@ -113,7 +113,7 @@ switch (result.didResolutionMetadata.error) {
     // Unexpected failure while fetching or processing JWKS
     break
   case "representationNotSupported":
-    // Reserved for unsupported accept / representation requests
+    // Reserved; not currently returned by this resolver (see #12)
     break
 }
 ```
