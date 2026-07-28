@@ -93,20 +93,27 @@ const jwksResult = await resolver.resolve("did:jwks:example.com")
 
 ## Error Handling
 
-Returns standard DID Resolution error types:
+Returns DID Resolution error types used by this resolver (compatible with
+[`did-resolver`](https://github.com/decentralized-identity/did-resolver)):
 
 ```typescript
 const result = await resolver.resolve("did:jwks:invalid.domain")
 
 switch (result.didResolutionMetadata.error) {
   case "invalidDid":
-    // DID syntax error
+    // Empty DID string
+    break
+  case "unsupportedDidMethod":
+    // DID is not did:jwks (including non-jwks methods)
     break
   case "notFound":
-    // JWKS endpoint not found
+    // JWKS endpoint not found / could not be resolved
+    break
+  case "internalError":
+    // Unexpected failure while fetching or processing JWKS
     break
   case "representationNotSupported":
-    // Invalid accept header
+    // Reserved; not currently returned by this resolver (see #12)
     break
 }
 ```
