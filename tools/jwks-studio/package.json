@@ -1,0 +1,32 @@
+{
+  "name": "did-jwks-studio",
+  "version": "1.0.0",
+  "description": "Interactive did:jwks Decentralized Identity (DID) Resolver, JWKS Generator & W3C Document Studio for Catena Labs.",
+  "main": "src/index.js",
+  "type": "module",
+  "bin": {
+    "did-jwks-cli": "./bin/jwks-cli.js"
+  },
+  "scripts": {
+    "start": "node src/server/app.js",
+    "cli": "node bin/jwks-cli.js",
+    "test": "node tests/run-all.js"
+  },
+  "keywords": [
+    "catena-labs",
+    "did-jwks",
+    "decentralized-identity",
+    "jwks",
+    "w3c-did",
+    "agent-identity",
+    "openid-connect"
+  ],
+  "author": "Catena Labs Community",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.5",
+    "express": "^4.21.2"
+  }
+}
