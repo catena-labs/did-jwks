@@ -117,9 +117,16 @@ function buildBaseUrl(
   const basePath = did
     .replace(/^did:jwks:/, "")
     .split(":")
-    .map(decodeURIComponent)
+    .map((segment) => {
+      try {
+        return decodeURIComponent(segment)
+      } catch {
+        return segment
+      }
+    })
+    .filter(Boolean)
     .join("/")
-    .replace(/\/+$/, "") // Strip trailing slashes in case of trailing colons
+    .replace(/\/+$/, "")
 
   const protocol = getProtocol(basePath, allowedHttpHosts)
   return `${protocol}://${basePath}`
