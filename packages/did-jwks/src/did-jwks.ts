@@ -39,6 +39,10 @@ export async function createDidJwksDidDocument(
   did: Did<"jwks">,
   jwks: JsonWebKeySet
 ): Promise<DidDocument> {
+  if (!jwks || !Array.isArray(jwks.keys)) {
+    throw new TypeError("Invalid JWKS: Expected an object with a keys array")
+  }
+
   const keysWithThumbprints = await Promise.all(
     jwks.keys.map(async (key) => {
       const { use } = key
