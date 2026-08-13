@@ -56,6 +56,7 @@ export async function fetchJwks(
   opts: FetchJwksOptions = {}
 ): Promise<JsonWebKeySet | null> {
   const base = buildBaseUrl(did, opts.allowedHttpHosts)
+  if (!base) return null
   const urls = buildResolutionUrls(base)
 
   const jwks = await fetchWithSchema(urls.jwks, JsonWebKeySetSchema, opts.fetch)
@@ -113,13 +114,21 @@ export async function fetchJwksDidDocument(
 function buildBaseUrl(
   did: Did<"jwks">,
   allowedHttpHosts: string[] = []
-): string {
-  const basePath = did
-    .replace(/^did:jwks:/, "")
-    .split(":")
-    .map(decodeURIComponent)
-    .join("/")
-    .replace(/\/+$/, "") // Strip trailing slashes in case of trailing colons
+): string | null {
+  let basePath: string
+  try {
+    basePath = did
+      .replace(/^did:jwks:/, "")
+      .split(":")
+      .map(decodeURIComponent)
+      .join("/")
+      .replace(/\/+$/, "") // Strip trailing slashes in case of trailing colons
+  } catch {
+    // decodeURIComponent throws URIError for malformed percent-encoding (e.g. %ZZ)
+    return null
+  }
+
+  if (!basePath) return null
 
   const protocol = getProtocol(basePath, allowedHttpHosts)
   return `${protocol}://${basePath}`
