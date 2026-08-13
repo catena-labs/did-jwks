@@ -8,7 +8,7 @@ export function createMockOidcHost({
   oidc: { jwks_uri: string }
 }) {
   return vi.fn((url: string) => {
-    if (url.endsWith("/.well-known/openid-configuration")) {
+    if (url.includes("/.well-known/openid-configuration")) {
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve(oidc)
