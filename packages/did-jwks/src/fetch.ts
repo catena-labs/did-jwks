@@ -69,15 +69,57 @@ export async function fetchJwks(
     OpenIDConfigurationSchema,
     opts.fetch
   )
-  if (openidConfig?.jwks_uri) {
+  if (
+    openidConfig?.jwks_uri &&
+    isAllowedJwksUri(openidConfig.jwks_uri, opts.allowedHttpHosts)
+  ) {
     return await fetchWithSchema(
       openidConfig.jwks_uri,
       JsonWebKeySetSchema,
-      opts.fetch
+      opts.fetch,
+      (url) => isAllowedJwksUri(url, opts.allowedHttpHosts)
     )
   }
 
   return null
+}
+
+/**
+ * Validate a `jwks_uri` discovered via OAuth2/OIDC discovery.
+ *
+ * A discovery document is untrusted input, so the transport guarantees applied
+ * to the DID's own host must also hold for the endpoint it points at: `https`
+ * is required, unless the host has been explicitly opted in via
+ * `allowedHttpHosts`. Any other scheme (`file:`, `data:`, ...) is rejected.
+ *
+ * Passed to `fetchWithSchema` rather than only checked here, so that it is
+ * re-applied to the URL the response came from: a `https` `jwks_uri` that
+ * redirects to `http` would otherwise reach the same plaintext channel.
+ *
+ * @param uri - The `jwks_uri` from the discovery document.
+ * @param allowedHttpHosts - Hosts allowed to be fetched over plaintext `http`.
+ * @returns `true` if the URI is safe to fetch.
+ */
+function isAllowedJwksUri(
+  uri: string,
+  allowedHttpHosts: string[] = []
+): boolean {
+  let url: URL
+  try {
+    url = new URL(uri)
+  } catch {
+    return false
+  }
+
+  if (url.protocol === "https:") {
+    return true
+  }
+
+  if (url.protocol === "http:") {
+    return allowedHttpHosts.includes(url.hostname)
+  }
+
+  return false
 }
 
 /**
