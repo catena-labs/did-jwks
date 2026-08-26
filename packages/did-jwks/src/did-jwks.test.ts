@@ -303,4 +303,50 @@ describe("fetchJwksDidDocument()", () => {
       fetchJwksDidDocument(did, { fetch: mockFetch })
     ).rejects.toThrow("body stream aborted")
   })
+
+  it("rejects dot segments in the path instead of letting them escape the DID's own path", async () => {
+    const mockFetch = vi.fn() as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:example.com:..:..:secret"
+
+    await expect(
+      fetchJwksDidDocument(did, { fetch: mockFetch })
+    ).rejects.toThrow(/dot segments are not allowed/)
+    // The bad DID must be rejected before any network request is attempted.
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it("rejects a single dot segment in the path", async () => {
+    const mockFetch = vi.fn() as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:example.com:.:secret"
+
+    await expect(
+      fetchJwksDidDocument(did, { fetch: mockFetch })
+    ).rejects.toThrow(/dot segments are not allowed/)
+  })
+
+  it("does not reject path segments that merely contain dots", async () => {
+    const mockFetch = mockFetchFn({
+      keys: [
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "test-key-1",
+          alg: "RS256",
+          n: "test-n-value",
+          e: "AQAB"
+        }
+      ]
+    })
+
+    // `v1.2` and `user.name` are not `.` or `..`, and should resolve normally.
+    const did = "did:jwks:example.com:v1.2:user.name"
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/v1.2/user.name/jwks.json"
+    )
+    expectJwksDidDocument(did, doc)
+  })
 })
