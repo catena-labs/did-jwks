@@ -11,7 +11,7 @@ import exampleAuth0Jwks from "@repo/test-utils/fixtures/example-auth0-jwks.json"
 import tokenActionsGitHubJwks from "@repo/test-utils/fixtures/token-actions-githubusercontent-jwks.json"
 import { describe, it, expect, vi, afterEach } from "vitest"
 
-import { fetchJwksDidDocument } from "./fetch"
+import { fetchJwks, fetchJwksDidDocument } from "./fetch"
 
 describe("fetchJwksDidDocument()", () => {
   afterEach(() => {
@@ -302,5 +302,45 @@ describe("fetchJwksDidDocument()", () => {
     await expect(
       fetchJwksDidDocument(did, { fetch: mockFetch })
     ).rejects.toThrow("body stream aborted")
+  })
+
+  it("falls through to OAuth2 discovery when the JWKS URL fails at the network level", async () => {
+    // A DNS lookup failure, connection refusal, TLS error, or timeout makes
+    // `fetch()` itself reject — distinct from an HTTP response with a
+    // non-ok status. The resolution algorithm says "if JWKS is not found,
+    // attempt discovery" without distinguishing *why* it wasn't found, so
+    // this must fall through exactly like a 404 does.
+    const mockFetch = vi.fn((url: string) => {
+      if (url.endsWith("jwks.json")) {
+        return Promise.reject(new TypeError("fetch failed"))
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({ jwks_uri: "https://example.com/oauth2/certs" })
+      })
+    }) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:example.com"
+    await fetchJwks(did, { fetch: mockFetch })
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/.well-known/jwks.json"
+    )
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/.well-known/openid-configuration"
+    )
+  })
+
+  it("returns null, rather than rejecting, when both the JWKS and discovery URLs fail at the network level", async () => {
+    const mockFetch = vi.fn(() =>
+      Promise.reject(new TypeError("fetch failed"))
+    ) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:example.com"
+
+    await expect(
+      fetchJwksDidDocument(did, { fetch: mockFetch })
+    ).resolves.toBeNull()
   })
 })
