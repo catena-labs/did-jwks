@@ -9,6 +9,7 @@ import appleidAppleJwks from "@repo/test-utils/fixtures/appleid-apple-jwks.json"
 import appleidAppleOidc from "@repo/test-utils/fixtures/appleid-apple-oidc.json"
 import exampleAuth0Jwks from "@repo/test-utils/fixtures/example-auth0-jwks.json"
 import tokenActionsGitHubJwks from "@repo/test-utils/fixtures/token-actions-githubusercontent-jwks.json"
+import type { Did } from "web-identity-schemas"
 import { describe, it, expect, vi, afterEach } from "vitest"
 
 import { fetchJwksDidDocument } from "./fetch"
@@ -302,5 +303,53 @@ describe("fetchJwksDidDocument()", () => {
     await expect(
       fetchJwksDidDocument(did, { fetch: mockFetch })
     ).rejects.toThrow("body stream aborted")
+  })
+})
+
+describe("fetchJwksDidDocument() segment delimiters", () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it.each<[string, Did<"jwks">]>([
+    ["@", "did:jwks:accounts.google.com%40evil.com"],
+    ["#", "did:jwks:example.com%23fragment"],
+    ["?", "did:jwks:example.com%3Fa=b"],
+    ["/", "did:jwks:example.com%2Fevil.com"]
+  ])(
+    "rejects a host segment that decodes to %s instead of resolving elsewhere",
+    async (_delimiter, did) => {
+      const mockFetch = mockFetchFn({ keys: [] })
+
+      const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+      expect(doc).toBeNull()
+      expect(mockFetch).not.toHaveBeenCalled()
+    }
+  )
+
+  it("keeps a decoded delimiter inside its own path segment", async () => {
+    const mockFetch = mockFetchFn({
+      keys: [
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "test-key-1",
+          alg: "RS256",
+          n: "test-n-value",
+          e: "AQAB"
+        }
+      ]
+    })
+
+    const did = "did:jwks:example.com:sub%23frag"
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    // Without re-encoding, the "#" would truncate the request to
+    // https://example.com/sub and drop the rest of the path.
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/sub%23frag/jwks.json"
+    )
+    expectJwksDidDocument(did, doc)
   })
 })
