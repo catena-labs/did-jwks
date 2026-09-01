@@ -256,6 +256,57 @@ describe("fetchJwksDidDocument()", () => {
     })
   })
 
+  it("deduplicates keys that share a thumbprint despite differing kid/alg", async () => {
+    // RFC 7638 thumbprints are computed only from required key-type members
+    // (kty/n/e for RSA), so two keys with identical key material but
+    // different kid/alg produce the same thumbprint — and, before
+    // deduplication, two verification methods with the same `id`.
+    const jwksWithDuplicateKeyMaterial = {
+      keys: [
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "a",
+          alg: "RS256",
+          n: "test-n-value-1",
+          e: "AQAB"
+        },
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "b",
+          alg: "RS512",
+          n: "test-n-value-1",
+          e: "AQAB"
+        },
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "c",
+          n: "test-n-value-2",
+          e: "AQAB"
+        }
+      ]
+    }
+
+    const mockFetch = mockFetchFn(jwksWithDuplicateKeyMaterial)
+    const did = "did:jwks:example.com"
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(doc).toBeTruthy()
+    if (!doc) {
+      return
+    }
+
+    // Only 2 distinct keys by thumbprint, not 3.
+    expect(doc.verificationMethod).toHaveLength(2)
+
+    const ids = doc.verificationMethod?.map((vm) => vm.id) ?? []
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(doc.assertionMethod).toHaveLength(2)
+    expect(doc.authentication).toHaveLength(2)
+  })
+
   it("returns error when no JWKS found", async () => {
     const mockFetch = mockFetchFn({})
 
