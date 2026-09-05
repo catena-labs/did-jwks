@@ -162,4 +162,42 @@ describe("Resolver", () => {
     expect(doc.didResolutionMetadata.error).toBe("notFound")
     expect(doc.didResolutionMetadata.message).toBe("No JWKS found")
   })
+
+  it("returns representationNotSupported for unsupported accept header", async () => {
+    const mockFetch = mockFetchFn(accountsGoogleJwks)
+
+    const did = "did:jwks:accounts.google.com"
+    const resolver = new Resolver(getResolver({ fetch: mockFetch }))
+    const doc = await resolver.resolve(did, {
+      accept: "application/did+cbor"
+    })
+
+    expect(doc.didDocument).toBeNull()
+    expect(doc.didResolutionMetadata.error).toBe("representationNotSupported")
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it("resolves when accept header includes the JSON-LD content type", async () => {
+    const mockFetch = mockFetchFn(accountsGoogleJwks)
+
+    const did = "did:jwks:accounts.google.com"
+    const resolver = new Resolver(getResolver({ fetch: mockFetch }))
+    const doc = await resolver.resolve(did, {
+      accept: "application/did+ld+json"
+    })
+
+    expect(doc.didDocument).not.toBeNull()
+    expectJwksDidDocument(did, doc.didDocument)
+  })
+
+  it("resolves when accept header is a wildcard", async () => {
+    const mockFetch = mockFetchFn(accountsGoogleJwks)
+
+    const did = "did:jwks:accounts.google.com"
+    const resolver = new Resolver(getResolver({ fetch: mockFetch }))
+    const doc = await resolver.resolve(did, { accept: "*/*" })
+
+    expect(doc.didDocument).not.toBeNull()
+    expectJwksDidDocument(did, doc.didDocument)
+  })
 })
