@@ -122,19 +122,26 @@ function buildBaseUrl(
     .replace(/\/+$/, "") // Strip trailing slashes in case of trailing colons
 
   const protocol = getProtocol(basePath, allowedHttpHosts)
-  return `${protocol}://${basePath}`
+  const url = new URL(`${protocol}://${basePath}`)
+
+  // Pct-encoded characters (e.g. %40 -> @) can make the decoded path carry
+  // URL userinfo, silently changing the host the DID resolves against.
+  if (url.username || url.password) {
+    throw new Error(`DID identifier must not contain URL userinfo: ${did}`)
+  }
+
+  return url.toString().replace(/\/$/, "")
 }
 
 function getProtocol(
   path: string,
   allowedHttpHosts: string[] = []
 ): "http" | "https" {
-  const [host] = path.split("/")
+  const url = new URL(`https://${path}`)
 
-  if (host) {
-    const hostWithoutPort = host.split(":")[0] ?? host
-    return allowedHttpHosts.includes(hostWithoutPort) ? "http" : "https"
+  if (url.username || url.password) {
+    return "https"
   }
 
-  return "https"
+  return allowedHttpHosts.includes(url.hostname) ? "http" : "https"
 }
