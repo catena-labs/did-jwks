@@ -304,3 +304,74 @@ describe("fetchJwksDidDocument()", () => {
     ).rejects.toThrow("body stream aborted")
   })
 })
+
+describe("fetchJwksDidDocument() authority validation", () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("rejects an IP-literal authority (SSRF via a cloud metadata address)", async () => {
+    const mockFetch = mockFetchFn({ keys: [] })
+    const did = "did:jwks:169.254.169.254"
+
+    await expect(
+      fetchJwksDidDocument(did, { fetch: mockFetch })
+    ).rejects.toThrow(/Invalid did:jwks authority/)
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it("rejects a percent-encoded port on a host that isn't in allowedHttpHosts (SSRF via an internal port)", async () => {
+    const mockFetch = mockFetchFn({ keys: [] })
+    const did = "did:jwks:127.0.0.1%3A9200"
+
+    await expect(
+      fetchJwksDidDocument(did, { fetch: mockFetch })
+    ).rejects.toThrow(/Invalid did:jwks authority/)
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it("rejects userinfo smuggled in via a percent-encoded @ (authority confusion / issuer impersonation)", async () => {
+    const mockFetch = mockFetchFn({ keys: [] })
+    const did = "did:jwks:accounts.google.com%40evil.example"
+
+    await expect(
+      fetchJwksDidDocument(did, { fetch: mockFetch })
+    ).rejects.toThrow(/Invalid did:jwks authority/)
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it("rejects a bracketed IPv6-shaped authority", async () => {
+    const mockFetch = mockFetchFn({ keys: [] })
+    const did = "did:jwks:%5B%3A%3A1%5D"
+
+    await expect(
+      fetchJwksDidDocument(did, { fetch: mockFetch })
+    ).rejects.toThrow(/Invalid did:jwks authority/)
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it("re-encodes a path segment that decodes to a slash instead of letting it split the path", async () => {
+    const mockFetch = mockFetchFn({ keys: [] })
+    const did = "did:jwks:example.com:foo%2Fbar"
+
+    await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/foo%2Fbar/jwks.json"
+    )
+  })
+
+  it("still allows a port on a host that is in allowedHttpHosts (local development)", async () => {
+    const mockFetch = mockFetchFn({ keys: [] })
+    const did = "did:jwks:127.0.0.1%3A9200"
+
+    await fetchJwksDidDocument(did, {
+      fetch: mockFetch,
+      allowedHttpHosts: ["127.0.0.1"]
+    })
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://127.0.0.1:9200/.well-known/jwks.json"
+    )
+  })
+})
