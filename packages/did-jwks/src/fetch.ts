@@ -44,7 +44,9 @@ export interface FetchJwksOptions {
   fetch?: typeof globalThis.fetch
   /**
    * The hosts that are allowed to be used via `http`. All other hosts will
-   * require `https`.  This is useful for local development and testing.
+   * require `https`. This applies to DID base URLs and to the final URL after
+   * any redirects during JWKS / OIDC discovery fetches. Useful for local
+   * development and testing.
    *
    * @default []
    */
@@ -58,7 +60,14 @@ export async function fetchJwks(
   const base = buildBaseUrl(did, opts.allowedHttpHosts)
   const urls = buildResolutionUrls(base)
 
-  const jwks = await fetchWithSchema(urls.jwks, JsonWebKeySetSchema, opts.fetch)
+  const allowedHttpHosts = opts.allowedHttpHosts ?? []
+
+  const jwks = await fetchWithSchema(
+    urls.jwks,
+    JsonWebKeySetSchema,
+    opts.fetch,
+    allowedHttpHosts
+  )
   if (jwks) {
     return jwks
   }
@@ -67,13 +76,15 @@ export async function fetchJwks(
   const openidConfig = await fetchWithSchema(
     urls.openidConfiguration,
     OpenIDConfigurationSchema,
-    opts.fetch
+    opts.fetch,
+    allowedHttpHosts
   )
   if (openidConfig?.jwks_uri) {
     return await fetchWithSchema(
       openidConfig.jwks_uri,
       JsonWebKeySetSchema,
-      opts.fetch
+      opts.fetch,
+      allowedHttpHosts
     )
   }
 
