@@ -59,7 +59,7 @@ export async function fetchJwks(
   const urls = buildResolutionUrls(base)
 
   const jwks = await fetchWithSchema(urls.jwks, JsonWebKeySetSchema, opts.fetch)
-  if (jwks) {
+  if (jwks && jwks.keys.length > 0) {
     return jwks
   }
 
@@ -92,7 +92,10 @@ export async function fetchJwksDidDocument(
   opts: FetchJwksOptions = {}
 ) {
   const jwks = await fetchJwks(did, opts)
-  if (!jwks) {
+  if (!jwks || jwks.keys.length === 0) {
+    // A JWKS with no keys would produce a DID document with no
+    // verification methods, which cannot verify anything. Treat it
+    // as unresolvable rather than emitting an empty document.
     return null
   }
 
