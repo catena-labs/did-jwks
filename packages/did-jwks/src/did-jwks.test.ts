@@ -303,4 +303,99 @@ describe("fetchJwksDidDocument()", () => {
       fetchJwksDidDocument(did, { fetch: mockFetch })
     ).rejects.toThrow("body stream aborted")
   })
+
+  it("refuses to fetch OIDC-discovered jwks_uri over insecure http", async () => {
+    const jwksData = {
+      keys: [
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "test-key-1",
+          n: "test-n-value",
+          e: "AQAB"
+        }
+      ]
+    }
+
+    const mockFetch = vi.fn((url: string) => {
+      if (url === "https://example.com/.well-known/openid-configuration") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ jwks_uri: "http://evil.com/keys" })
+        })
+      }
+      if (url === "http://evil.com/keys") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(jwksData)
+        })
+      }
+      return Promise.resolve({ ok: false, status: 404 })
+    }) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:example.com"
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(doc).toBeNull()
+    expect(mockFetch).not.toHaveBeenCalledWith("http://evil.com/keys")
+  })
+
+  it("allows http jwks_uri for hosts in allowedHttpHosts", async () => {
+    const jwksData = {
+      keys: [
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "test-key-1",
+          n: "test-n-value",
+          e: "AQAB"
+        }
+      ]
+    }
+
+    const mockFetch = vi.fn((url: string) => {
+      if (url === "http://localhost:3000/.well-known/openid-configuration") {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({ jwks_uri: "http://localhost:3000/keys" })
+        })
+      }
+      if (url === "http://localhost:3000/keys") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(jwksData)
+        })
+      }
+      return Promise.resolve({ ok: false, status: 404 })
+    }) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:localhost%3A3000"
+    const doc = await fetchJwksDidDocument(did, {
+      fetch: mockFetch,
+      allowedHttpHosts: ["localhost"]
+    })
+
+    expect(doc).toBeTruthy()
+    expect(mockFetch).toHaveBeenCalledWith("http://localhost:3000/keys")
+  })
+
+  it("refuses OIDC-discovered jwks_uri carrying userinfo", async () => {
+    const mockFetch = vi.fn((url: string) => {
+      if (url === "https://example.com/.well-known/openid-configuration") {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({ jwks_uri: "https://good.com@evil.com/keys" })
+        })
+      }
+      return Promise.resolve({ ok: false, status: 404 })
+    }) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:example.com"
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(doc).toBeNull()
+    expect(mockFetch).not.toHaveBeenCalledWith("https://good.com@evil.com/keys")
+  })
 })
