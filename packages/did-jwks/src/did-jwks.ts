@@ -39,8 +39,21 @@ export async function createDidJwksDidDocument(
   did: Did<"jwks">,
   jwks: JsonWebKeySet
 ): Promise<DidDocument> {
+  // JWKS endpoints must only publish public keys. Symmetric (`oct`) keys
+  // would leak the shared secret via `k`, and any key carrying private
+  // material (`d`) would leak it via `publicKeyJwk`. Skip them instead.
+  const usableKeys = jwks.keys.filter((key) => {
+    if (key.kty === "oct") {
+      return false
+    }
+    if ("d" in key) {
+      return false
+    }
+    return true
+  })
+
   const keysWithThumbprints = await Promise.all(
-    jwks.keys.map(async (key) => {
+    usableKeys.map(async (key) => {
       const { use } = key
       const thumbprint = await generateJwkThumbprint(key)
       return {
@@ -51,6 +64,7 @@ export async function createDidJwksDidDocument(
     })
   )
 
+  const seenThumbprints = new Set<string>()
   const { verificationMethods, sigMethodIds, encMethodIds } =
     keysWithThumbprints.reduce<{
       verificationMethods: VerificationMethod[]
@@ -58,6 +72,13 @@ export async function createDidJwksDidDocument(
       encMethodIds: string[]
     }>(
       (acc, { use, publicKeyJwk, thumbprint }) => {
+        // Duplicate keys (same thumbprint) would create duplicate
+        // verificationMethod ids, which is invalid. Keep the first.
+        if (seenThumbprints.has(thumbprint)) {
+          return acc
+        }
+        seenThumbprints.add(thumbprint)
+
         const id = `${did}#${thumbprint}` as const
 
         acc.verificationMethods.push({
