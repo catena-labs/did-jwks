@@ -133,7 +133,13 @@ describe("Resolver", () => {
     expectJwksDidDocument(did, doc.didDocument)
   })
 
-  it("returns error when fetch throws an exception", async () => {
+  it("returns notFound, not internalError, when fetch fails at the network level on every URL", async () => {
+    // A DNS/connection/TLS-level failure (what `fetch()` itself rejects
+    // with) is exactly as much "could not be fetched" as a non-ok HTTP
+    // response is — see `fetchWithSchema`. With no reachable URL at all,
+    // the correct DID resolution error code is `notFound` (nothing could
+    // be resolved), not `internalError` (which is for genuine
+    // implementation failures, not an unreachable target).
     const mockFetch = vi
       .fn()
       .mockRejectedValue(
@@ -145,8 +151,29 @@ describe("Resolver", () => {
     const doc = await resolver.resolve(did)
 
     expect(doc.didDocument).toBeNull()
+    expect(doc.didResolutionMetadata.error).toBe("notFound")
+    expect(doc.didResolutionMetadata.message).toBe("No JWKS found")
+  })
+
+  it("still reports internalError for a genuine unexpected failure (non-network, non-JSON-syntax)", async () => {
+    // `internalError` remains reachable for failures `fetchWithSchema`
+    // deliberately does NOT swallow — e.g. a body-read failure that isn't
+    // a JSON syntax error. This pins that the network-level fix above
+    // didn't accidentally make the internalError branch dead code.
+    const mockFetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.reject(new Error("body stream aborted"))
+      })
+    ) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:example.com"
+    const resolver = new Resolver(getResolver({ fetch: mockFetch }))
+    const doc = await resolver.resolve(did)
+
+    expect(doc.didDocument).toBeNull()
     expect(doc.didResolutionMetadata.error).toBe("internalError")
-    expect(doc.didResolutionMetadata.message).toBe("Network timeout")
+    expect(doc.didResolutionMetadata.message).toBe("body stream aborted")
   })
 
   it("returns error when no JWKS found", async () => {
