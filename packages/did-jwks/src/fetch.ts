@@ -70,6 +70,13 @@ export async function fetchJwks(
     opts.fetch
   )
   if (openidConfig?.jwks_uri) {
+    // The discovery document is fetched over https from the DID domain,
+    // but jwks_uri itself is attacker-influenced if that endpoint is
+    // compromised. Enforce the same https/allowlist policy as the base
+    // URL instead of fetching arbitrary http URLs.
+    if (!isAllowedJwksUri(openidConfig.jwks_uri, opts.allowedHttpHosts ?? [])) {
+      return null
+    }
     return await fetchWithSchema(
       openidConfig.jwks_uri,
       JsonWebKeySetSchema,
@@ -78,6 +85,35 @@ export async function fetchJwks(
   }
 
   return null
+}
+
+/**
+ * Whether an OIDC-discovered `jwks_uri` is safe to fetch.
+ *
+ * Requires https unless the hostname is in `allowedHttpHosts`, and rejects
+ * URLs carrying userinfo or a non-http(s) protocol.
+ */
+function isAllowedJwksUri(uri: string, allowedHttpHosts: string[]): boolean {
+  let parsed: URL
+  try {
+    parsed = new URL(uri)
+  } catch {
+    return false
+  }
+
+  if (parsed.username || parsed.password) {
+    return false
+  }
+
+  if (parsed.protocol === "https:") {
+    return true
+  }
+
+  if (parsed.protocol === "http:") {
+    return allowedHttpHosts.includes(parsed.hostname)
+  }
+
+  return false
 }
 
 /**
