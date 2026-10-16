@@ -8,7 +8,7 @@
   },
   "devDependencies": {
     "standard-parse": "^0.3.0",
-    "vitest": "^3.2.4",
+    "vitest": "^4.1.11",
     "web-identity-schemas": "^0.1.6"
   }
 }
