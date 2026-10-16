@@ -59,8 +59,8 @@ export async function fetchJwks(
   const urls = buildResolutionUrls(base)
 
   const jwks = await fetchWithSchema(urls.jwks, JsonWebKeySetSchema, opts.fetch)
-  if (jwks) {
-    return jwks
+  if (jwks.status === "found") {
+    return jwks.value
   }
 
   // If JWKS fetch fails, try OpenID configuration discovery
@@ -69,12 +69,13 @@ export async function fetchJwks(
     OpenIDConfigurationSchema,
     opts.fetch
   )
-  if (openidConfig?.jwks_uri) {
-    return await fetchWithSchema(
-      openidConfig.jwks_uri,
+  if (openidConfig.status === "found" && openidConfig.value.jwks_uri) {
+    const discovered = await fetchWithSchema(
+      openidConfig.value.jwks_uri,
       JsonWebKeySetSchema,
       opts.fetch
     )
+    return discovered.status === "found" ? discovered.value : null
   }
 
   return null
