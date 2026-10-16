@@ -41,17 +41,22 @@ pnpm monorepo with three packages under `packages/`:
 `did:jwks:domain.com` resolves as:
 
 1. Parse DID into base URL (`https://domain.com`)
-2. Fetch `/.well-known/jwks.json` (or `{path}/jwks.json` for path DIDs)
-3. If 404, fall back to OIDC discovery (`/.well-known/openid-configuration`) to
-   find `jwks_uri`
-4. Transform JWKS keys into DID document verification methods using JWK
+2. Fetch OIDC discovery (`/.well-known/openid-configuration`). If valid
+   (`issuer` equals the base URL, one trailing slash allowed; `jwks_uri` is
+   https), `jwks_uri` is the only key location
+3. Only if discovery returns 404, fall back to `/.well-known/jwks.json` (or
+   `{path}/jwks.json` for path DIDs), unless `jwksFallback: false`. Any other
+   discovery failure fails resolution
+4. A miss at the selected location fails resolution. Never move to another
+   location, and never union key sets
+5. Transform JWKS keys into DID document verification methods using JWK
    thumbprints as fragment IDs
-5. Keys with `use: "enc"` go to `keyAgreement`; all others go to
+6. Keys with `use: "enc"` go to `keyAgreement`; all others go to
    `authentication` + `assertionMethod`
 
-Path DIDs (e.g., `did:jwks:example.com:path:segment`) use RFC 8414-style
-discovery where `.well-known/openid-configuration` is inserted between origin
-and path.
+Path DIDs (e.g., `did:jwks:example.com:path:segment`) use only the RFC 8414
+insertion form, where `.well-known/openid-configuration` is inserted between
+origin and path.
 
 ## Conventions
 

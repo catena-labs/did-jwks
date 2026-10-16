@@ -24,9 +24,15 @@ console.log(result.didDocument)
 
 ## API
 
-### `getResolver(): ResolverRegistry`
+### `getResolver(options?): ResolverRegistry`
 
 Returns a resolver registry for use with `did-resolver`.
+
+Options:
+
+- `fetch`: The fetch function to use. Default: `globalThis.fetch`.
+- `allowedHttpHosts`: Hosts that may use `http`. All other hosts use `https`. Use this for local development and testing. An `http` `jwks_uri` is allowed only when the DID itself uses an allowed http host. Default: `[]`.
+- `jwksFallback`: Read `jwks.json` when the discovery document returns 404. Set to `false` for discovery-only resolution. Default: `true`.
 
 ```typescript
 import { Resolver } from "did-resolver"
@@ -62,6 +68,17 @@ const customResult = await resolver.resolve(
 )
 ```
 
+### Discovery-Only Resolution
+
+Turn off the `jwks.json` fallback. DIDs whose host has no discovery document then fail to resolve.
+
+```typescript
+import { Resolver } from "did-resolver"
+import { getResolver } from "jwks-did-resolver"
+
+const resolver = new Resolver(getResolver({ jwksFallback: false }))
+```
+
 ### Multi-Method Resolver
 
 ```typescript
@@ -83,13 +100,16 @@ const jwksResult = await resolver.resolve("did:jwks:example.com")
 ## Resolution Algorithm
 
 1. **Parse DID**: Extracts domain and path components
-2. **JWKS Discovery**:
-   - Root DID direct lookup: `https://domain/.well-known/jwks.json`
-   - Path DID direct lookup: `https://domain/{path}/jwks.json`
-   - Root DID OAuth2 discovery: `https://domain/.well-known/openid-configuration`
-   - Path DID OAuth2 discovery: `https://domain/.well-known/openid-configuration/{path}`
-3. **Transform**: Converts JWKS to DID verification methods
-4. **Return**: Standard DID Resolution result
+2. **Discovery**: Fetches the OAuth2/OIDC discovery document:
+   - Root DID: `https://domain/.well-known/openid-configuration`
+   - Path DID: `https://domain/.well-known/openid-configuration/{path}`
+3. **Select one key location**:
+   - Valid discovery document: its `jwks_uri`. The `issuer` must equal the DID's URL (one terminating `/` allowed).
+   - Discovery returns 404: `https://domain/.well-known/jwks.json` or `https://domain/{path}/jwks.json` (unless `jwksFallback` is `false`).
+   - Any other discovery result: resolution fails.
+4. **Fetch JWKS** from the selected location. A miss fails. It never moves to another location.
+5. **Transform**: Converts JWKS to DID verification methods
+6. **Return**: Standard DID Resolution result
 
 ## Error Handling
 
