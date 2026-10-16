@@ -205,6 +205,43 @@ describe("fetchJwksDidDocument() discovery-first resolution", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 
+  it.each([
+    ["a username", "https://good.example@keys.example.com/jwks"],
+    ["a username and password", "https://user:pass@keys.example.com/jwks"]
+  ])(
+    "does not fall back when the jwks_uri carries %s",
+    async (_description, userinfoJwksUri) => {
+      const mockFetch = createMockFetch({
+        [discoveryUrl]: {
+          issuer: "https://example.com",
+          jwks_uri: userinfoJwksUri
+        },
+        [userinfoJwksUri]: { keys: [rsaKey("discovered")] },
+        [fixedJwksUrl]: { keys: [rsaKey("fixed")] }
+      })
+
+      const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+      expect(doc).toBeNull()
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+    }
+  )
+
+  it("does not fall back when the jwks_uri uses another scheme", async () => {
+    const mockFetch = createMockFetch({
+      [discoveryUrl]: {
+        issuer: "https://example.com",
+        jwks_uri: "file:///etc/jwks.json"
+      },
+      [fixedJwksUrl]: { keys: [rsaKey("fixed")] }
+    })
+
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(doc).toBeNull()
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
   it("rejects an http jwks_uri on an allowed http host for an https identity", async () => {
     const localJwksUri = "http://localhost/keys"
     const mockFetch = createMockFetch({
