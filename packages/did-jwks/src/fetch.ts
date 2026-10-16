@@ -56,6 +56,10 @@ export async function fetchJwks(
   opts: FetchJwksOptions = {}
 ): Promise<JsonWebKeySet | null> {
   const base = buildBaseUrl(did, opts.allowedHttpHosts)
+  if (!base) {
+    return null
+  }
+
   const urls = buildResolutionUrls(base)
 
   const jwks = await fetchWithSchema(urls.jwks, JsonWebKeySetSchema, opts.fetch)
@@ -100,7 +104,18 @@ export async function fetchJwksDidDocument(
 }
 
 /**
+ * Delimiters that terminate the host component of a URL. A segment that
+ * decodes to one of these would push the rest of the identifier into the
+ * userinfo, path, query or fragment, changing which origin is contacted.
+ */
+const HOST_DELIMITERS = /[@/\\?#]/
+
+/**
  * Build a base URL from a full `did:jwks` URI.
+ *
+ * Each segment is percent-decoded, so a segment may decode to characters that
+ * are structural in a URL. The first segment names the host and is rejected if
+ * it does; the remaining segments are re-encoded so they stay within the path.
  *
  * @example
  * ```
@@ -108,33 +123,34 @@ export async function fetchJwksDidDocument(
  * // base === "https://accounts.google.com/matt"
  * ```
  *
- * @returns The base URL
+ * @returns The base URL, or `null` if the first segment does not name a host
  */
 function buildBaseUrl(
   did: Did<"jwks">,
   allowedHttpHosts: string[] = []
-): string {
-  const basePath = did
+): string | null {
+  const [host, ...pathSegments] = did
     .replace(/^did:jwks:/, "")
     .split(":")
     .map(decodeURIComponent)
+
+  if (!host || HOST_DELIMITERS.test(host)) {
+    return null
+  }
+
+  const path = pathSegments
+    .map(encodeURIComponent)
     .join("/")
     .replace(/\/+$/, "") // Strip trailing slashes in case of trailing colons
 
-  const protocol = getProtocol(basePath, allowedHttpHosts)
-  return `${protocol}://${basePath}`
+  const protocol = getProtocol(host, allowedHttpHosts)
+  return path ? `${protocol}://${host}/${path}` : `${protocol}://${host}`
 }
 
 function getProtocol(
-  path: string,
+  host: string,
   allowedHttpHosts: string[] = []
 ): "http" | "https" {
-  const [host] = path.split("/")
-
-  if (host) {
-    const hostWithoutPort = host.split(":")[0] ?? host
-    return allowedHttpHosts.includes(hostWithoutPort) ? "http" : "https"
-  }
-
-  return "https"
+  const hostWithoutPort = host.split(":")[0] ?? host
+  return allowedHttpHosts.includes(hostWithoutPort) ? "http" : "https"
 }
