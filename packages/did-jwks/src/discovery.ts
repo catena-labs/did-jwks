@@ -34,8 +34,9 @@ function isMatchingIssuer(issuer: string, identityUrl: string): boolean {
 }
 
 /**
- * A `jwks_uri` must use `https`. The only exception is local testing: an
- * `http` identity URL may name an `http` `jwks_uri` on an allowed http host.
+ * A `jwks_uri` must use `https` and must not carry userinfo. The only
+ * exception to `https` is local testing: an `http` identity URL may name an
+ * `http` `jwks_uri` on an allowed http host.
  */
 function isAllowedJwksUri(
   jwksUri: string,
@@ -43,6 +44,9 @@ function isAllowedJwksUri(
   allowedHttpHosts: readonly string[]
 ): boolean {
   const url = new URL(jwksUri)
+  if (url.username || url.password) {
+    return false
+  }
   if (url.protocol === "https:") {
     return true
   }
