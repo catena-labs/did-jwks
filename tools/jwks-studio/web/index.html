@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>did:jwks Studio • Catena Labs DID Resolver & JWKS Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="app-header">
+    <div class="logo-area">
+      <div class="logo-badge">
+        <span class="logo-glow"></span>
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+      </div>
+      <div>
+        <h1 class="brand-title">CATENA LABS <span class="badge-did">DID:JWKS STUDIO</span></h1>
+        <p class="brand-subtitle">W3C Decentralized Identifier Spec & Generative JWKS Endpoint Resolver</p>
+      </div>
+    </div>
+
+    <!-- W3C Spec Pill -->
+    <div class="spec-pill">
+      <span class="pulse-dot"></span>
+      <span>Generative DID Method</span>
+      <span class="w3c-tag">W3C DID v1.0</span>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="nav-tabs">
+    <button class="nav-tab active" data-tab="resolver">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      DID Document Resolver
+    </button>
+    <button class="nav-tab" data-tab="generator">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-2 2l-2 2m7-2l-2-2m-2 2l-2-2"></path><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect></svg>
+      JWKS Key Generator
+    </button>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Tab 1: Resolver -->
+    <section id="tab-resolver" class="tab-pane active">
+      <div class="hero-card">
+        <div class="hero-content">
+          <div class="pill-highlight">🆔 OpenID Connect & W3C DID Bridge</div>
+          <h2>Generative DID Document Resolution</h2>
+          <p>
+            <code>did:jwks</code> transforms existing OAuth2 and OpenID Connect JWKS endpoints into W3C Decentralized Identifiers instantly without authoring static files.
+          </p>
+        </div>
+      </div>
+
+      <div class="layout-grid mt-4">
+        <!-- Resolve Form -->
+        <div class="card">
+          <div class="card-header">
+            <h3>🔍 Resolve did:jwks Identifier</h3>
+          </div>
+
+          <form id="resolve-form" class="token-form">
+            <div class="form-group">
+              <label>Select Sample or Input DID</label>
+              <select id="select-sample-did" class="form-input"></select>
+            </div>
+
+            <div class="form-group">
+              <label>Target DID Identifier</label>
+              <input type="text" id="input-did" class="form-input mono" placeholder="did:jwks:https:domain.com:.well-known:jwks.json#key-1" required />
+            </div>
+
+            <button type="submit" class="btn btn-gradient btn-lg mt-2" id="btn-resolve-did">
+              🆔 Resolve to W3C DID Document
+            </button>
+          </form>
+
+          <div id="resolve-result-box" class="mt-3"></div>
+        </div>
+
+        <!-- W3C DID Document Inspector -->
+        <div class="card">
+          <div class="card-header">
+            <h3>📜 W3C DID Document Output</h3>
+          </div>
+          <div class="json-inspector">
+            <div class="inspector-header"><span>application/did+ld+json</span></div>
+            <pre id="did-doc-json-box">Click "Resolve to W3C DID Document" to view JSON-LD output.</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 2: Generator -->
+    <section id="tab-generator" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <h3>🔐 Generate JWKS & did:jwks Key Pair</h3>
+        </div>
+
+        <form id="generate-form" class="token-form">
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Domain / Issuer URL</label>
+              <input type="text" id="gen-domain" class="form-input" value="auth.catena.network" required />
+            </div>
+            <div class="form-group">
+              <label>Key Type / Curve</label>
+              <select id="gen-keytype" class="form-input">
+                <option value="Ed25519">Ed25519 (OKP / EdDSA)</option>
+                <option value="RSA">RSA-2048 (RS256)</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-gradient btn-lg mt-3">
+            🔐 Generate Key Set & did:jwks URI
+          </button>
+        </form>
+
+        <div class="json-inspector mt-3">
+          <div class="inspector-header"><span>Generated JWKS & did:jwks Output</span></div>
+          <pre id="gen-output-box">Generated key set output will appear here.</pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>did:jwks Studio • Catena Labs • AI & Decentralized Identity Infrastructure • Open Source</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
