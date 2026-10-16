@@ -11,6 +11,9 @@ import type { DIDResolutionResult, DIDResolver } from "did-resolver"
  * @param opts.allowedHttpHosts - The hosts that are allowed to be used via
  * `http`. All other hosts will require `https`.  This is useful for local
  * development and testing.
+ * @param opts.discoveryDids - The DIDs that resolve through OAuth 2.0 / OpenID
+ * Connect discovery instead of the fixed JWKS location. All other DIDs read
+ * only the fixed location.
  *
  * @returns A `did:jwks` resolver for use with `did-resolver`
  */

@@ -2,6 +2,7 @@ import type { Did, JsonWebKeySet } from "web-identity-schemas"
 import { JsonWebKeySetSchema } from "web-identity-schemas/valibot"
 
 import { createDidJwksDidDocument } from "./did-jwks"
+import { discoverJwksUri } from "./discovery"
 import { fetchWithSchema } from "./utils/fetch-with-schema"
 
 /**
@@ -31,12 +32,28 @@ export interface FetchJwksOptions {
    * @default []
    */
   allowedHttpHosts?: string[]
+  /**
+   * The DIDs that resolve through OAuth 2.0 / OpenID Connect discovery
+   * instead of the fixed JWKS location.
+   *
+   * For a listed DID, the resolver reads the discovery document, checks that
+   * its `issuer` exactly equals the DID's URL, and reads keys only from its
+   * `jwks_uri`. The fixed location is never read for that DID. All other DIDs
+   * read only the fixed location. A miss at either location never falls back
+   * to the other.
+   *
+   * DIDs are compared as exact strings.
+   *
+   * @default []
+   */
+  discoveryDids?: readonly Did<"jwks">[]
 }
 
 /**
- * Fetches the JWKS for a `did:jwks` DID from its fixed location.
+ * Fetches the JWKS for a `did:jwks` DID from exactly one location.
  *
- * Resolution reads exactly one location. A 404, an error status or a
+ * The location is the fixed JWKS path, or the discovered `jwks_uri` when the
+ * DID is listed in `opts.discoveryDids`. A 404, an error status or a
  * malformed document returns `null`, and a network error rejects. There is
  * no fallback to another location.
  */
@@ -45,11 +62,15 @@ export async function fetchJwks(
   opts: FetchJwksOptions = {}
 ): Promise<JsonWebKeySet | null> {
   const base = buildBaseUrl(did, opts.allowedHttpHosts)
-  return await fetchWithSchema(
-    buildJwksUrl(base),
-    JsonWebKeySetSchema,
-    opts.fetch
-  )
+  const jwksUrl = opts.discoveryDids?.includes(did)
+    ? await discoverJwksUri(base, opts)
+    : buildJwksUrl(base)
+
+  if (!jwksUrl) {
+    return null
+  }
+
+  return await fetchWithSchema(jwksUrl, JsonWebKeySetSchema, opts.fetch)
 }
 
 /**
