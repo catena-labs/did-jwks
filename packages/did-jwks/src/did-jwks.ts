@@ -8,6 +8,7 @@ import { DidDocumentSchema, UriSchema } from "web-identity-schemas/valibot"
 import { isDidWithMethod } from "web-identity-schemas/valibot"
 
 import { generateJwkThumbprint } from "./utils/jwk-thumbprint"
+import { toPublicJwk } from "./utils/to-public-jwk"
 export { isDid } from "web-identity-schemas/valibot"
 
 /**
@@ -45,7 +46,7 @@ export async function createDidJwksDidDocument(
       const thumbprint = await generateJwkThumbprint(key)
       return {
         use,
-        publicKeyJwk: key,
+        publicKeyJwk: toPublicJwk(key),
         thumbprint
       }
     })
