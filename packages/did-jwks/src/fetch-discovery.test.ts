@@ -276,6 +276,79 @@ describe("fetchJwksDidDocument() discovery-first resolution", () => {
     expect(keyIds(doc)).toEqual(["discovered"])
   })
 
+  describe("redirects", () => {
+    function mockRedirectFetch(redirects: Record<string, string>) {
+      return vi.fn((url: string) => {
+        const landedUrl = redirects[url] ?? url
+        const bodies: Record<string, object> = {
+          [discoveryUrl]: discovery,
+          [jwksUri]: { keys: [rsaKey("discovered")] },
+          [fixedJwksUrl]: { keys: [rsaKey("fixed")] }
+        }
+        const body = bodies[url]
+        return Promise.resolve(
+          body === undefined
+            ? { ok: false, status: 404, url: landedUrl }
+            : {
+                ok: true,
+                status: 200,
+                url: landedUrl,
+                json: () => Promise.resolve(body)
+              }
+        )
+      }) as unknown as typeof globalThis.fetch
+    }
+
+    it("does not fall back when the discovery document redirects to http", async () => {
+      const mockFetch = mockRedirectFetch({
+        [discoveryUrl]: "http://example.com/.well-known/openid-configuration"
+      })
+
+      const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+      expect(doc).toBeNull()
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+    })
+
+    it("returns null when the jwks_uri redirects to http", async () => {
+      const mockFetch = mockRedirectFetch({
+        [jwksUri]: "http://keys.example.com/jwks"
+      })
+
+      const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+      expect(doc).toBeNull()
+    })
+
+    it("returns null when the fallback JWKS redirects to http", async () => {
+      const mockFetch = createMockFetch({})
+      const redirectFetch = vi.fn((url: string) =>
+        url === fixedJwksUrl
+          ? Promise.resolve({
+              ok: true,
+              status: 200,
+              url: "http://example.com/.well-known/jwks.json",
+              json: () => Promise.resolve({ keys: [rsaKey("fixed")] })
+            })
+          : mockFetch(url)
+      ) as unknown as typeof globalThis.fetch
+
+      const doc = await fetchJwksDidDocument(did, { fetch: redirectFetch })
+
+      expect(doc).toBeNull()
+    })
+
+    it("follows a redirect to another https URL", async () => {
+      const mockFetch = mockRedirectFetch({
+        [jwksUri]: "https://cdn.example.com/jwks"
+      })
+
+      const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+      expect(keyIds(doc)).toEqual(["discovered"])
+    })
+  })
+
   describe("path DIDs", () => {
     const pathDid = "did:jwks:auth.example.com:tenant123"
     const insertionForm =

@@ -67,6 +67,91 @@ describe("fetchWithSchema()", () => {
     ).resolves.toEqual({ status: "invalid" })
   })
 
+  describe("after a redirect", () => {
+    const body = { name: "alice" }
+
+    it("returns invalid when an https request lands on an http URL", async () => {
+      const fetch = mockResponse({
+        ok: true,
+        status: 200,
+        url: "http://example.com/doc",
+        json: () => Promise.resolve(body)
+      })
+
+      await expect(
+        fetchWithSchema("https://example.com/doc", schema, fetch)
+      ).resolves.toEqual({ status: "invalid" })
+    })
+
+    it("returns invalid, not missing, when the http URL returns 404", async () => {
+      const fetch = mockResponse({
+        ok: false,
+        status: 404,
+        url: "http://example.com/doc"
+      })
+
+      await expect(
+        fetchWithSchema("https://example.com/doc", schema, fetch)
+      ).resolves.toEqual({ status: "invalid" })
+    })
+
+    it("returns invalid when an https request lands on an allowed http host", async () => {
+      const fetch = mockResponse({
+        ok: true,
+        status: 200,
+        url: "http://localhost/doc",
+        json: () => Promise.resolve(body)
+      })
+
+      await expect(
+        fetchWithSchema("https://example.com/doc", schema, fetch, ["localhost"])
+      ).resolves.toEqual({ status: "invalid" })
+    })
+
+    it("returns found when an https request lands on another https URL", async () => {
+      const fetch = mockResponse({
+        ok: true,
+        status: 200,
+        url: "https://cdn.example.com/doc",
+        json: () => Promise.resolve(body)
+      })
+
+      await expect(
+        fetchWithSchema("https://example.com/doc", schema, fetch)
+      ).resolves.toEqual({ status: "found", value: body })
+    })
+
+    it("returns found when an http request lands on an allowed http host", async () => {
+      const fetch = mockResponse({
+        ok: true,
+        status: 200,
+        url: "http://localhost:3000/other",
+        json: () => Promise.resolve(body)
+      })
+
+      await expect(
+        fetchWithSchema("http://localhost:3000/doc", schema, fetch, [
+          "localhost"
+        ])
+      ).resolves.toEqual({ status: "found", value: body })
+    })
+
+    it("returns invalid when an http request lands on another http host", async () => {
+      const fetch = mockResponse({
+        ok: true,
+        status: 200,
+        url: "http://evil.example/doc",
+        json: () => Promise.resolve(body)
+      })
+
+      await expect(
+        fetchWithSchema("http://localhost:3000/doc", schema, fetch, [
+          "localhost"
+        ])
+      ).resolves.toEqual({ status: "invalid" })
+    })
+  })
+
   it("rejects on a network error", async () => {
     const fetch = vi
       .fn()
