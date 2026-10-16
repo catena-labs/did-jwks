@@ -88,7 +88,12 @@ export async function fetchJwks(
     return null
   }
 
-  const jwks = await fetchWithSchema(jwksUrl, JsonWebKeySetSchema, opts.fetch)
+  const jwks = await fetchWithSchema(
+    jwksUrl,
+    JsonWebKeySetSchema,
+    opts.fetch,
+    opts.allowedHttpHosts
+  )
   return jwks.status === "found" ? jwks.value : null
 }
 

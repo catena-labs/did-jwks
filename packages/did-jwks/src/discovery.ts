@@ -74,7 +74,8 @@ export async function discoverJwksUri(
   const result = await fetchWithSchema(
     buildDiscoveryUrl(identityUrl),
     OpenIDConfigurationSchema,
-    opts.fetch
+    opts.fetch,
+    opts.allowedHttpHosts
   )
   if (result.status !== "found") {
     return result
