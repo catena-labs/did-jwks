@@ -18,15 +18,21 @@ const resolver = new Resolver({
   ...getResolver()
 })
 
-const result = await resolver.resolve("did:jwks:accounts.google.com")
+const result = await resolver.resolve("did:jwks:example.auth0.com")
 console.log(result.didDocument)
 ```
 
 ## API
 
-### `getResolver(): ResolverRegistry`
+### `getResolver(options?): ResolverRegistry`
 
 Returns a resolver registry for use with `did-resolver`.
+
+Options:
+
+- `fetch`: The fetch function to use. Default: `globalThis.fetch`.
+- `allowedHttpHosts`: Hosts that may use `http`. All other hosts use `https`. Use this for local development and testing. Default: `[]`.
+- `discoveryDids`: DIDs that resolve through OAuth2/OIDC discovery instead of the fixed JWKS location. DIDs are compared as exact strings. Default: `[]`.
 
 ```typescript
 import { Resolver } from "did-resolver"
@@ -48,17 +54,35 @@ import { getResolver } from "jwks-did-resolver"
 
 const resolver = new Resolver(getResolver())
 
-// Resolve Google's OAuth2 JWKS as a DID
-const googleResult = await resolver.resolve("did:jwks:accounts.google.com")
-
-// Resolve GitHub Actions JWKS as a DID
-const githubResult = await resolver.resolve(
-  "did:jwks:token.actions.githubusercontent.com"
-)
+// Resolve Auth0's JWKS as a DID
+const auth0Result = await resolver.resolve("did:jwks:example.auth0.com")
 
 // Resolve custom domain with path
 const customResult = await resolver.resolve(
   "did:jwks:auth.mycompany.com:api:v1"
+)
+```
+
+### Opt-in Discovery
+
+Google and GitHub publish their keys only through OAuth2/OIDC discovery. Name each DID that may use discovery. All other DIDs read only the fixed JWKS location.
+
+```typescript
+import { Resolver } from "did-resolver"
+import { getResolver } from "jwks-did-resolver"
+
+const resolver = new Resolver(
+  getResolver({
+    discoveryDids: [
+      "did:jwks:accounts.google.com",
+      "did:jwks:token.actions.githubusercontent.com"
+    ]
+  })
+)
+
+const googleResult = await resolver.resolve("did:jwks:accounts.google.com")
+const githubResult = await resolver.resolve(
+  "did:jwks:token.actions.githubusercontent.com"
 )
 ```
 
@@ -83,13 +107,17 @@ const jwksResult = await resolver.resolve("did:jwks:example.com")
 ## Resolution Algorithm
 
 1. **Parse DID**: Extracts domain and path components
-2. **JWKS Discovery**:
-   - Root DID direct lookup: `https://domain/.well-known/jwks.json`
-   - Path DID direct lookup: `https://domain/{path}/jwks.json`
-   - Root DID OAuth2 discovery: `https://domain/.well-known/openid-configuration`
-   - Path DID OAuth2 discovery: `https://domain/.well-known/openid-configuration/{path}`
+2. **Fetch JWKS** from exactly one location:
+   - **Strict mode** (default):
+     - Root DID: `https://domain/.well-known/jwks.json`
+     - Path DID: `https://domain/{path}/jwks.json`
+   - **Discovery mode** (only for DIDs in `discoveryDids`): read the discovery document, check that its `issuer` exactly equals the DID's URL, then fetch its `jwks_uri`. The `jwks_uri` must use `https`, and may be on a different origin.
+     - Root DID: `https://domain/.well-known/openid-configuration`
+     - Path DID: `https://domain/.well-known/openid-configuration/{path}`
 3. **Transform**: Converts JWKS to DID verification methods
 4. **Return**: Standard DID Resolution result
+
+A 404, a network error or a malformed document makes resolution fail. The resolver never falls back from one location to another, and never combines key sets from two locations.
 
 ## Error Handling
 

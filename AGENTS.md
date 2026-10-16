@@ -18,7 +18,8 @@ pnpm --filter=jwks-did-resolver test
 pnpm --filter=did-jwks exec vitest run src/did-jwks.test.ts
 
 # CLI (resolves a DID and prints the document)
-pnpm run cli -- did:jwks:accounts.google.com
+pnpm run cli -- did:jwks:example.auth0.com
+pnpm run cli -- --discovery did:jwks:accounts.google.com
 
 # Typecheck
 pnpm run typecheck      # Single tsconfig.json at root, covers all packages
@@ -41,17 +42,22 @@ pnpm monorepo with three packages under `packages/`:
 `did:jwks:domain.com` resolves as:
 
 1. Parse DID into base URL (`https://domain.com`)
-2. Fetch `/.well-known/jwks.json` (or `{path}/jwks.json` for path DIDs)
-3. If 404, fall back to OIDC discovery (`/.well-known/openid-configuration`) to
-   find `jwks_uri`
+2. Read keys from exactly one location:
+   - Strict mode (default): `/.well-known/jwks.json` (or `{path}/jwks.json`
+     for path DIDs)
+   - Discovery mode (only DIDs in the `discoveryDids` option): fetch
+     `/.well-known/openid-configuration`, require `issuer` to equal the base
+     URL, then fetch `jwks_uri`
+3. A 404, network error or malformed document fails resolution. Never fall
+   back from one location to another, and never union key sets
 4. Transform JWKS keys into DID document verification methods using JWK
    thumbprints as fragment IDs
 5. Keys with `use: "enc"` go to `keyAgreement`; all others go to
    `authentication` + `assertionMethod`
 
-Path DIDs (e.g., `did:jwks:example.com:path:segment`) use RFC 8414-style
-discovery where `.well-known/openid-configuration` is inserted between origin
-and path.
+Path DIDs (e.g., `did:jwks:example.com:path:segment`) in discovery mode use
+only the RFC 8414 insertion form, where `.well-known/openid-configuration` is
+inserted between origin and path.
 
 ## Conventions
 
