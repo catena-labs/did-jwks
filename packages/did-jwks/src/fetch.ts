@@ -2,37 +2,20 @@ import type { Did, JsonWebKeySet } from "web-identity-schemas"
 import { JsonWebKeySetSchema } from "web-identity-schemas/valibot"
 
 import { createDidJwksDidDocument } from "./did-jwks"
+import { discoverJwksUri } from "./discovery"
 import { fetchWithSchema } from "./utils/fetch-with-schema"
-import { OpenIDConfigurationSchema } from "./utils/schemas"
-
-interface ResolutionUrls {
-  readonly jwks: string
-  readonly openidConfiguration: string
-}
 
 /**
- * Build JWKS and OIDC discovery URLs based on whether the DID contains a path.
+ * Build the fallback JWKS location for a `did:jwks` base URL.
  *
  * Root DIDs use `.well-known` exclusively (RFC 8615 compliant).
- * Path DIDs use direct file paths for JWKS and RFC 8414-style discovery
- * where `.well-known/openid-configuration` is inserted between the origin and path.
+ * Path DIDs use a direct file path below the DID path.
  */
-function buildResolutionUrls(base: string): ResolutionUrls {
+function buildJwksUrl(base: string): string {
   const url = new URL(base)
   const hasPath = url.pathname !== "/" && url.pathname !== ""
 
-  if (hasPath) {
-    const path = url.pathname.replace(/^\/+|\/+$/g, "")
-    return {
-      jwks: `${base}/jwks.json`,
-      openidConfiguration: `${url.origin}/.well-known/openid-configuration/${path}`
-    }
-  }
-
-  return {
-    jwks: `${base}/.well-known/jwks.json`,
-    openidConfiguration: `${base}/.well-known/openid-configuration`
-  }
+  return hasPath ? `${base}/jwks.json` : `${base}/.well-known/jwks.json`
 }
 
 export interface FetchJwksOptions {
@@ -51,34 +34,50 @@ export interface FetchJwksOptions {
   allowedHttpHosts?: string[]
 }
 
+/**
+ * Select the one location to read keys from.
+ *
+ * A valid discovery document makes its `jwks_uri` the only key location. Only
+ * a discovery 404 selects the fallback `jwks.json` location. Every other
+ * discovery failure selects no location.
+ */
+async function selectJwksUrl(
+  base: string,
+  opts: FetchJwksOptions
+): Promise<string | null> {
+  const discovery = await discoverJwksUri(base, opts)
+
+  switch (discovery.status) {
+    case "found":
+      return discovery.value
+    case "missing":
+      return buildJwksUrl(base)
+    case "invalid":
+      return null
+  }
+}
+
+/**
+ * Fetches the JWKS for a `did:jwks` DID from exactly one location.
+ *
+ * Discovery comes first. If the discovery document is valid, its `jwks_uri`
+ * is the only key location. If the discovery document returns 404, the
+ * fallback `jwks.json` location is the only key location. A failure at the
+ * selected location returns `null` and never moves to another location. A
+ * network error rejects.
+ */
 export async function fetchJwks(
   did: Did<"jwks">,
   opts: FetchJwksOptions = {}
 ): Promise<JsonWebKeySet | null> {
   const base = buildBaseUrl(did, opts.allowedHttpHosts)
-  const urls = buildResolutionUrls(base)
-
-  const jwks = await fetchWithSchema(urls.jwks, JsonWebKeySetSchema, opts.fetch)
-  if (jwks.status === "found") {
-    return jwks.value
+  const jwksUrl = await selectJwksUrl(base, opts)
+  if (!jwksUrl) {
+    return null
   }
 
-  // If JWKS fetch fails, try OpenID configuration discovery
-  const openidConfig = await fetchWithSchema(
-    urls.openidConfiguration,
-    OpenIDConfigurationSchema,
-    opts.fetch
-  )
-  if (openidConfig.status === "found" && openidConfig.value.jwks_uri) {
-    const discovered = await fetchWithSchema(
-      openidConfig.value.jwks_uri,
-      JsonWebKeySetSchema,
-      opts.fetch
-    )
-    return discovered.status === "found" ? discovered.value : null
-  }
-
-  return null
+  const jwks = await fetchWithSchema(jwksUrl, JsonWebKeySetSchema, opts.fetch)
+  return jwks.status === "found" ? jwks.value : null
 }
 
 /**
