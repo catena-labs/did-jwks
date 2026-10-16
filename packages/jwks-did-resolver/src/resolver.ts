@@ -1,6 +1,34 @@
 import { isDidJwks, fetchJwksDidDocument } from "did-jwks"
 import type { FetchJwksOptions } from "did-jwks"
-import type { DIDResolutionResult, DIDResolver } from "did-resolver"
+import type {
+  DIDResolutionOptions,
+  DIDResolutionResult,
+  DIDResolver,
+  ParsedDID,
+  Resolvable
+} from "did-resolver"
+
+export const CONTENT_TYPE = "application/did+ld+json"
+
+/**
+ * Whether the requested `accept` media range is compatible with the
+ * JSON-LD DID document representation produced by this resolver.
+ */
+function acceptsContentType(accept: string | undefined): boolean {
+  if (!accept) {
+    return true
+  }
+  return accept
+    .split(",")
+    .map((range) => range.split(";")[0]?.trim() ?? "")
+    .some(
+      (range) =>
+        range === CONTENT_TYPE ||
+        range === "application/*" ||
+        range === "*/*" ||
+        range === "*"
+    )
+}
 
 /**
  * Get a `did-resolver` compatible resolver for did:jwks
@@ -17,7 +45,12 @@ import type { DIDResolutionResult, DIDResolver } from "did-resolver"
 export function getResolver(opts: FetchJwksOptions = {}): {
   jwks: DIDResolver
 } {
-  async function resolve(did: string): Promise<DIDResolutionResult> {
+  async function resolve(
+    did: string,
+    _parsed: ParsedDID,
+    _resolver: Resolvable,
+    options?: DIDResolutionOptions
+  ): Promise<DIDResolutionResult> {
     if (!did) {
       return {
         didDocument: null,
@@ -31,6 +64,17 @@ export function getResolver(opts: FetchJwksOptions = {}): {
         didDocument: null,
         didDocumentMetadata: {},
         didResolutionMetadata: { error: "unsupportedDidMethod" }
+      }
+    }
+
+    if (!acceptsContentType(options?.accept)) {
+      return {
+        didDocument: null,
+        didDocumentMetadata: {},
+        didResolutionMetadata: {
+          error: "representationNotSupported",
+          message: `Only ${CONTENT_TYPE} is supported`
+        }
       }
     }
 
@@ -60,7 +104,7 @@ export function getResolver(opts: FetchJwksOptions = {}): {
     return {
       didDocument,
       didDocumentMetadata: {},
-      didResolutionMetadata: { contentType: "application/did+ld+json" }
+      didResolutionMetadata: { contentType: CONTENT_TYPE }
     }
   }
 
