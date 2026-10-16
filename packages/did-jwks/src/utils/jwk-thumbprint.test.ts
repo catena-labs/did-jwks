@@ -17,6 +17,69 @@ describe("generateJwkThumbprint()", () => {
     )
   })
 
+  it("matches the EC P-256 thumbprint for the RFC 7518 example key", async () => {
+    // Public members from RFC 7518 Appendix C example JWK
+    const jwk = {
+      kty: "EC" as const,
+      crv: "P-256" as const,
+      x: "MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4",
+      y: "4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM",
+      use: "enc" as const,
+      kid: "1"
+    }
+
+    await expect(generateJwkThumbprint(jwk)).resolves.toBe(
+      "cn-I_WNMClehiVp51i_0VpOENW1upEerA8sEam5hn-s"
+    )
+  })
+
+  it("matches the RFC 8037 OKP Ed25519 thumbprint example", async () => {
+    const jwk = {
+      kty: "OKP" as const,
+      crv: "Ed25519" as const,
+      x: "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo",
+      d: "nWGxne_9WmC6hEr0kuwsxERJxWl7MmkZcDusAxyuf2A"
+    }
+
+    await expect(generateJwkThumbprint(jwk)).resolves.toBe(
+      "kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k"
+    )
+  })
+
+  it("ignores non-required parameters for EC and OKP keys", async () => {
+    const ecMinimal = {
+      kty: "EC" as const,
+      crv: "P-256" as const,
+      x: "MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4",
+      y: "4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM"
+    }
+    const ecWithExtras = {
+      ...ecMinimal,
+      use: "sig" as const,
+      kid: "ec-key",
+      alg: "ES256" as const
+    }
+
+    const okpMinimal = {
+      kty: "OKP" as const,
+      crv: "Ed25519" as const,
+      x: "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo"
+    }
+    const okpWithExtras = {
+      ...okpMinimal,
+      use: "sig" as const,
+      kid: "ed25519-key",
+      alg: "EdDSA" as const
+    }
+
+    await expect(generateJwkThumbprint(ecMinimal)).resolves.toBe(
+      await generateJwkThumbprint(ecWithExtras)
+    )
+    await expect(generateJwkThumbprint(okpMinimal)).resolves.toBe(
+      await generateJwkThumbprint(okpWithExtras)
+    )
+  })
+
   it("generates consistent thumbprints for RSA keys", async () => {
     const jwk = {
       kty: "RSA" as const,
