@@ -114,12 +114,25 @@ function buildBaseUrl(
   did: Did<"jwks">,
   allowedHttpHosts: string[] = []
 ): string {
-  const basePath = did
+  const [host, ...pathSegments] = did
     .replace(/^did:jwks:/, "")
     .split(":")
     .map(decodeURIComponent)
-    .join("/")
-    .replace(/\/+$/, "") // Strip trailing slashes in case of trailing colons
+
+  // Reject `.`/`..` path segments rather than letting them reach the URL
+  // constructors below. `did:jwks` is a purely generative method: the DID is
+  // meant to be the sole authority on where its keys live, and dot segments
+  // let distinct DIDs (e.g. `example.com:a:..:b` and `example.com:b`) resolve
+  // to the same path, letting one DID's keys pose as another's.
+  for (const segment of pathSegments) {
+    if (segment === "." || segment === "..") {
+      throw new Error(
+        `invalid did:jwks path segment "${segment}": dot segments are not allowed`
+      )
+    }
+  }
+
+  const basePath = [host, ...pathSegments].join("/").replace(/\/+$/, "") // Strip trailing slashes in case of trailing colons
 
   const protocol = getProtocol(basePath, allowedHttpHosts)
   return `${protocol}://${basePath}`
