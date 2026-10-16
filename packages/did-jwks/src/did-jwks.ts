@@ -39,8 +39,16 @@ export async function createDidJwksDidDocument(
   did: Did<"jwks">,
   jwks: JsonWebKeySet
 ): Promise<DidDocument> {
+  // Symmetric keys (`kty: "oct"`) are secret material, not public verification
+  // material. A DID document is public, so emitting an `oct` key as a
+  // `publicKeyJwk` would leak the secret (or, at best, mislead consumers into
+  // treating a shared secret as a public key). Skip them rather than
+  // rejecting the whole JWKS, since a mixed JWKS with unrelated symmetric
+  // keys (e.g. for token encryption) is still valid for DID resolution.
+  const publicKeys = jwks.keys.filter((key) => key.kty !== "oct")
+
   const keysWithThumbprints = await Promise.all(
-    jwks.keys.map(async (key) => {
+    publicKeys.map(async (key) => {
       const { use } = key
       const thumbprint = await generateJwkThumbprint(key)
       return {
