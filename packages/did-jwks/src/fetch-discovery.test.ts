@@ -241,7 +241,27 @@ describe("fetchJwksDidDocument() with opt-in discovery", () => {
     expect(mockFetch).not.toHaveBeenCalledWith(insecureJwksUri)
   })
 
-  it("allows an http jwks_uri on an allowed http host", async () => {
+  it("returns null when an https identity names an http jwks_uri on an allowed http host", async () => {
+    const localJwksUri = "http://localhost/keys"
+    const mockFetch = createMockFetch({
+      [exampleDiscovery]: {
+        issuer: "https://example.com",
+        jwks_uri: localJwksUri
+      },
+      [localJwksUri]: { keys: [rsaKey("discovered")] }
+    })
+
+    const doc = await fetchJwksDidDocument(exampleDid, {
+      fetch: mockFetch,
+      allowedHttpHosts: ["localhost"],
+      discoveryDids: [exampleDid]
+    })
+
+    expect(doc).toBeNull()
+    expect(mockFetch).not.toHaveBeenCalledWith(localJwksUri)
+  })
+
+  it("allows an http jwks_uri for an http identity on an allowed http host", async () => {
     const did = "did:jwks:localhost%3A3000"
     const jwksUri = "http://localhost:3000/keys"
     const mockFetch = createMockFetch({
