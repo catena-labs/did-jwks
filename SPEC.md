@@ -4,6 +4,7 @@
 - **Latest version**: https://github.com/catena-labs/did-jwks/blob/main/SPEC.md
 - **Reference implementation**: https://github.com/catena-labs/did-jwks
 - **Status**: Submitted to W3C DID Extensions Registry
+- **Version**: 2 (2026-10-16). See the [Changelog](#changelog).
 
 ## Introduction
 
@@ -23,11 +24,13 @@ Like `did:key` and `did:pkh`, the DID document is dynamically generated rather t
 
 ## Design Goals
 
-1. **Zero Migration Cost**: Existing OAuth2 providers become DID-compatible without any infrastructure changes or new endpoints.
+1. **Zero Migration Cost**: Providers that publish an OAuth2/OIDC discovery document, or a JWKS file at the fallback location, become DID-compatible without infrastructure changes or new endpoints.
 
-1. **Explicit Semantics**: Replace ambiguous key discovery with deterministic resolution - `did:jwks:example.com` unambiguously points to JWKS endpoints.
+1. **Explicit Semantics**: Replace ambiguous key discovery with deterministic resolution. `did:jwks:example.com` resolves to exactly one JWKS location, and every resolver selects the same location.
 
-1. **Standard OAuth2 Compatibility**: Support both direct JWKS endpoints and OAuth2 discovery patterns used by major providers.
+1. **One Key Location**: A resolver reads keys from one location. When a discovery document exists, its `jwks_uri` is the only key location. A miss at the selected location never moves resolution to another location.
+
+1. **Standard OAuth2 Compatibility**: OAuth2/OIDC discovery is the primary mechanism, because major providers publish keys through `jwks_uri`. A direct JWKS file serves hosts that have no discovery document.
 
 1. **Existing Key Management**: Leverage battle-tested JWKS key rotation and management that organizations already operate.
 
@@ -46,27 +49,31 @@ Like `did:web`, colons (`:`) in the path are converted to forward slashes (`/`) 
 
 ### Resolution Algorithm
 
-1. **Parse Path**: Convert colons (`:`) in the path to forward slashes (`/`)
-1. **Fetch JWKS** (varies by DID type):
-   - **Root DIDs** (no path): Try `https://{domain}/.well-known/jwks.json`
-   - **Path DIDs**: Try `https://{domain}/{path}/jwks.json`
-1. **OAuth2/OIDC Discovery** (if JWKS not found):
-   - **Root DIDs**: Fetch `https://{domain}/.well-known/openid-configuration` and extract `jwks_uri`
-   - **Path DIDs**: Per [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414), fetch `https://{domain}/.well-known/openid-configuration/{path}` and extract `jwks_uri`
-1. **Transform**: Convert JWKS to DID document format
+1. **Parse Path**: Convert colons (`:`) in the path to forward slashes (`/`). This gives the _identity URL_: `https://{domain}` for root DIDs and `https://{domain}/{path}` for path DIDs.
+1. **OAuth2/OIDC Discovery**: Fetch the discovery document:
+   - **Root DIDs**: `https://{domain}/.well-known/openid-configuration`
+   - **Path DIDs**: Per [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414), `https://{domain}/.well-known/openid-configuration/{path}`
+1. **Select one key location**:
+   - If the discovery document is valid, the key location is its `jwks_uri`.
+   - If the discovery document returns 404, the key location is the fallback JWKS file: `https://{domain}/.well-known/jwks.json` for root DIDs, or `https://{domain}/{path}/jwks.json` for path DIDs.
+   - For any other discovery result, resolution fails.
+1. **Fetch JWKS** from the selected location. If it is missing or malformed, resolution fails. A resolver MUST NOT try another location.
+1. **Transform**: Convert the JWKS to DID document format.
 
-> **Note**: Per [RFC 8615](https://www.rfc-editor.org/rfc/rfc8615), `.well-known` URIs are only defined at the root of the path hierarchy. Root DIDs use standard `.well-known` paths. Path DIDs use direct file paths for JWKS and [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414)-style discovery for OAuth2/OIDC metadata, where `.well-known` is inserted between the origin and path to remain at the root.
+> **Note**: Per [RFC 8615](https://www.rfc-editor.org/rfc/rfc8615), `.well-known` URIs are only defined at the root of the path hierarchy. Root DIDs use standard `.well-known` paths. Path DIDs use [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414)-style discovery for OAuth2/OIDC metadata, where `.well-known` is inserted between the origin and path to remain at the root, and direct file paths for the fallback JWKS.
 
 ### Examples
 
-|   Provider    |                 DID Identifier                 |                         Resolves To                          |
-| :-----------: | :--------------------------------------------: | :----------------------------------------------------------: |
-|     Auth0     |          `did:jwks:example.auth0.com`          |      `https://example.auth0.com/.well-known/jwks.json`       |
-|    Google     |         `did:jwks:accounts.google.com`         | `https://www.googleapis.com/oauth2/v3/certs` (via discovery) |
-|    GitHub     | `did:jwks:token.actions.githubusercontent.com` |                OAuth2 discovery → `jwks_uri`                 |
-| Corporate SSO |           `did:jwks:sso.company.com`           |       `https://sso.company.com/.well-known/jwks.json`        |
-| With Subpath  |         `did:jwks:example.com:api:v1`          |            `https://example.com/api/v1/jwks.json`            |
-|  Tenant Path  |     `did:jwks:auth.example.com:tenant123`      |        `https://auth.example.com/tenant123/jwks.json`        |
+|   Provider    |                 DID Identifier                 |    Key Location From    |                          Resolves To                           |
+| :-----------: | :--------------------------------------------: | :---------------------: | :------------------------------------------------------------: |
+|    Google     |         `did:jwks:accounts.google.com`         |        Discovery        |          `https://www.googleapis.com/oauth2/v3/certs`          |
+|    GitHub     | `did:jwks:token.actions.githubusercontent.com` |        Discovery        | `https://token.actions.githubusercontent.com/.well-known/jwks` |
+|     Auth0     |          `did:jwks:example.auth0.com`          |        Discovery        |       `https://example.auth0.com/.well-known/jwks.json`        |
+| Corporate SSO |           `did:jwks:sso.company.com`           | Fallback (no discovery) |        `https://sso.company.com/.well-known/jwks.json`         |
+| With Subpath  |         `did:jwks:example.com:api:v1`          | Fallback (no discovery) |             `https://example.com/api/v1/jwks.json`             |
+|  Tenant Path  |     `did:jwks:auth.example.com:tenant123`      | Fallback (no discovery) |         `https://auth.example.com/tenant123/jwks.json`         |
+
+The fallback rows assume that the host returns 404 for the discovery document. If the host publishes a valid discovery document, its `jwks_uri` is the key location instead.
 
 ## Operations
 
@@ -87,13 +94,15 @@ Construct the DID Document for _did_ as follows:
 
 1. Parse the DID to extract _domain_ and optional _path_ according to syntax above
 1. Convert colons (`:`) in _path_ to forward slashes (`/`) to form the URL path
-1. **Fetch JWKS**:
-   - **Root DIDs** (no path): Try `https://{domain}/.well-known/jwks.json`
-   - **Path DIDs**: Try `https://{domain}/{path}/jwks.json`
-   - If JWKS is not found, attempt **OAuth2/OIDC Discovery**:
-     - **Root DIDs**: Fetch `https://{domain}/.well-known/openid-configuration`
-     - **Path DIDs**: Per RFC 8414, fetch `https://{domain}/.well-known/openid-configuration/{path}`
-   - Extract `jwks_uri` from the discovery document and fetch from that endpoint
+1. Form the _identity URL_: `https://{domain}` for root DIDs, or `https://{domain}/{path}` for path DIDs. The identity URL has no trailing slash.
+1. **Discover the JWKS URI** (see below). The result is _found_ with a `jwks_uri`, _missing_, or _invalid_.
+1. **Select the key location**. Select exactly one location:
+   - If the result is _found_, the location is the `jwks_uri`.
+   - If the result is _missing_, the location is the fallback JWKS file:
+     - **Root DIDs** (no path): `https://{domain}/.well-known/jwks.json`
+     - **Path DIDs**: `https://{domain}/{path}/jwks.json`
+   - If the result is _invalid_, resolution fails.
+1. **Fetch the JWKS** from the selected location. If the response is not a success, if the request fails, or if the body is not a valid JWKS, resolution fails. The resolver MUST NOT fetch keys from any other location. In particular, it MUST NOT fetch the fallback JWKS file after a `jwks_uri` miss.
 1. **Generate DID Document**:
    - Set `id` to _did_
    - Set `@context` to `["https://www.w3.org/ns/did/v1"]`
@@ -106,6 +115,26 @@ Construct the DID Document for _did_ as follows:
    - Populate `assertionMethod` and `authentication` with keys where `use: "sig"` (default if unspecified)
    - Populate `keyAgreement` with keys where `use: "enc"`
 
+When resolution fails, the resolver returns a null DID document and an error in the DID resolution metadata (for example, `notFound`).
+
+#### Discover the JWKS URI
+
+1. Fetch the discovery document:
+   - **Root DIDs**: `https://{domain}/.well-known/openid-configuration`
+   - **Path DIDs**: `https://{domain}/.well-known/openid-configuration/{path}` (the [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414) insertion form)
+1. If the response status is 404, the result is _missing_.
+1. If the request fails, the resolution fails.
+1. If the response has any other status that is not a success, or if the body is not a JSON object, the result is _invalid_.
+1. The `issuer` member MUST be present. It MUST equal the identity URL, or the identity URL followed by one `/`, compared as strings. If not, the result is _invalid_.
+1. The `jwks_uri` member MUST be present and MUST be an absolute `https` URL. If not, the result is _invalid_. The `jwks_uri` MAY be on a different origin from the identity URL (see [jwks_uri Origin](#jwks_uri-origin)).
+1. Otherwise, the result is _found_ with the `jwks_uri`.
+
+A resolver MUST NOT fetch a second discovery document. For path DIDs, it MUST NOT fetch the OpenID Connect Discovery 1.0 form (`https://{domain}/{path}/.well-known/openid-configuration`).
+
+#### Discovery-Only Resolution
+
+A resolver MAY let a verifier turn off the fallback JWKS file. In that case, a _missing_ result makes resolution fail. This setting never changes the key set that a DID resolves to. It can only make resolution fail where the default resolution succeeds.
+
 ### Update
 
 No updates possible. DID documents are dynamically generated from JWKS endpoints.
@@ -113,6 +142,11 @@ No updates possible. DID documents are dynamically generated from JWKS endpoints
 ### Delete
 
 No deletion possible. DID documents exist only as long as the underlying JWKS endpoint is available.
+
+To deactivate a DID, the publisher removes the JWKS from the location that the DID resolves from:
+
+- **A host with a discovery document**: remove the keys from the `jwks_uri`, or remove both the discovery document and any fallback JWKS file. Removal of only the discovery document makes resolvers read the fallback JWKS file, if one exists.
+- **A host without a discovery document**: remove the fallback JWKS file.
 
 ## Security & Privacy Considerations
 
@@ -145,9 +179,49 @@ But **NOT appropriate for**:
 
 Resolution requires network access to JWKS endpoints. Unlike some DID methods, `did:jwks` cannot be resolved offline and depends on the availability of the target domain's infrastructure.
 
-### OAuth2 Discovery Complexity
+### One Key Location
 
-The fallback to OAuth2 discovery introduces additional failure modes and potential security considerations around redirect attacks or malformed discovery documents.
+Version 1 of this specification fetched the JWKS file first and, on any miss, fell back to OAuth2/OIDC discovery and its `jwks_uri`. That fallback let a miss widen the key set. A publisher that deletes `jwks.json` to revoke its keys expects the DID to stop resolving. With the fallback, a resolver silently read a different key set from the discovery document.
+
+Version 2 reads the discovery document first:
+
+- When a valid discovery document exists, its `jwks_uri` is the only key location. The resolver never reads the fallback JWKS file, so a stale `jwks.json` has no effect.
+- A miss at the selected location ends resolution. It never moves resolution to another location.
+- Key sets from two locations are never combined. A union would stop key removal at either location from revoking.
+- Every resolver selects the same location for the same DID, without configuration.
+
+### Fallback Scope
+
+Version 2 keeps one fallback: a discovery 404 selects the fallback JWKS file. This lets hosts without a discovery document publish keys with one static file.
+
+The fallback is narrow. Only a 404 selects it. A failed request, any other error status, a body that is not JSON, a missing member, or a failed check ends resolution. Thus a server error or a misconfigured discovery document never moves resolution to a different key set.
+
+The fallback has one remaining risk. If a host removes its discovery document and still serves a stale fallback JWKS file, resolvers read the stale keys. Hosts that publish a discovery document SHOULD NOT also serve a fallback JWKS file with different keys. To deactivate a DID, follow the steps in [Delete](#delete).
+
+Hosts that rely on the fallback MUST return 404 for the discovery URL. Some static hosts return 403 for a missing file, or return an HTML page with status 200 for every path. On such hosts, resolution fails.
+
+A verifier that does not accept the fallback can use [discovery-only resolution](#discovery-only-resolution).
+
+### Issuer Check
+
+The discovery document's `issuer` MUST equal the identity URL. This binds the document to the identity, and it stops a document for one identity from supplying keys for another identity on the same host. It follows [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414) section 3.3 and [OpenID Connect Discovery 1.0](https://openid.net/specs/openid-connect-discovery-1_0.html) section 4.3.
+
+The comparison allows one terminating `/`. RFC 8414 section 3.1 removes a terminating `/` from the issuer before it builds the discovery URL, so `https://example.com` and `https://example.com/` have the same discovery document. Auth0, for example, publishes its issuer with a terminating `/`. Any other difference makes the check fail: a different scheme, a different letter case, a different path, or more than one `/`.
+
+### One Discovery Location
+
+For path DIDs, a resolver reads only the RFC 8414 insertion form. It does not read the OpenID Connect Discovery 1.0 path-append form, so two discovery documents can never disagree. Providers that publish only the path-append form (for example, Microsoft Entra ID tenants and some realm-based identity servers) do not resolve through discovery.
+
+### jwks_uri Origin
+
+This specification does not require the `jwks_uri` to be on the same origin as the identity URL. The `jwks_uri` MUST use `https`. The reasons are:
+
+- **Major providers use a different origin.** `https://accounts.google.com` publishes its keys at `https://www.googleapis.com/oauth2/v3/certs`. A same-origin rule makes such identities unresolvable.
+- **OAuth2 and OIDC do not require it.** RFC 8414 and OpenID Connect Discovery 1.0 allow a `jwks_uri` on any origin, and OIDC relying parties already accept it.
+- **A same-origin rule adds little protection against key substitution.** The discovery document comes from the identity's origin over TLS, and its `issuer` must match. An attacker who can change that document controls the origin, and can also serve keys from that origin.
+- **A same-origin rule does not stop server-side request forgery.** An attacker who controls a DID's domain can point that domain's DNS at an internal address. A resolver that accepts untrusted DIDs needs address checks on every fetch, whatever the `jwks_uri` origin is.
+
+The cost is a larger trust base: the key set depends on DNS and TLS for both the identity origin and the `jwks_uri` origin. A compromise of either origin can substitute keys. A verifier MAY apply a stricter same-origin rule.
 
 ## Limitations
 
@@ -162,7 +236,8 @@ The fallback to OAuth2 discovery introduces additional failure modes and potenti
 
 - **DNS/Domain Control Required**: The DID is only as secure as the domain's DNS and TLS infrastructure
 - **JWKS Endpoint Availability**: If the JWKS endpoint is down, the DID cannot be resolved
-- **OAuth2 Discovery Complexity**: Resolution may require multiple HTTP requests and can fail at various points in the discovery chain
+- **Two Requests**: Every resolution fetches a discovery document first. Hosts without one need a second request for the fallback JWKS file
+- **Insertion Form Only**: Providers that publish only the path-append discovery form do not resolve through discovery
 
 **Key Management Limitations**:
 
@@ -242,7 +317,7 @@ This specification is implemented in TypeScript at [github.com/catena-labs/did-j
 
 The implementation includes:
 
-- Full DID resolver supporting both direct JWKS and OAuth2 discovery
+- Full DID resolver with discovery-first resolution, a 404-only fallback to the JWKS file, and an option for discovery-only resolution
 - Comprehensive JWKS and DID document validation schemas using Valibot
 - Test vectors for major OAuth2 providers (Google, Auth0, GitHub, etc.)
 - Integration with standard DID resolution libraries
@@ -255,20 +330,44 @@ The following test vectors demonstrate resolution for major OAuth2 providers:
 
 - **DID**: `did:jwks:accounts.google.com`
 - **Discovery**: `https://accounts.google.com/.well-known/openid-configuration`
-- **JWKS URI**: `https://www.googleapis.com/oauth2/v3/certs`
+- **Issuer**: `https://accounts.google.com`
+- **JWKS URI**: `https://www.googleapis.com/oauth2/v3/certs` (a different origin)
 
 ### Auth0
 
 - **DID**: `did:jwks:example.auth0.com`
-- **Direct JWKS**: `https://example.auth0.com/.well-known/jwks.json`
+- **Discovery**: `https://example.auth0.com/.well-known/openid-configuration`
+- **Issuer**: `https://example.auth0.com/` (one terminating `/`)
+- **JWKS URI**: `https://example.auth0.com/.well-known/jwks.json`
 
 ### GitHub Actions
 
 - **DID**: `did:jwks:token.actions.githubusercontent.com`
 - **Discovery**: `https://token.actions.githubusercontent.com/.well-known/openid-configuration`
+- **Issuer**: `https://token.actions.githubusercontent.com`
 - **JWKS URI**: `https://token.actions.githubusercontent.com/.well-known/jwks`
 
 [Complete test vectors available in the repository]
+
+---
+
+## Changelog
+
+### Version 2 (2026-10-16)
+
+Breaking change to resolution.
+
+- Resolution reads the OAuth2/OIDC discovery document first. When it is valid, its `jwks_uri` is the only key location, and the JWKS file is never read.
+- The JWKS file is a fallback only when the discovery document returns 404. Any other discovery failure ends resolution.
+- A miss at the selected location ends resolution. Key sets from two locations are never combined.
+- The discovery `issuer` MUST equal the identity URL, with one terminating `/` allowed. The `jwks_uri` MUST use `https`, and MAY be on a different origin.
+- Path DIDs read only the RFC 8414 insertion form of the discovery document.
+- Resolvers MAY offer discovery-only resolution, which turns off the fallback.
+- Reason: version 1 read the JWKS file first and fell back to discovery on any miss. Deleting `jwks.json` then did not revoke keys, because resolvers read a different key set from the discovery document.
+
+### Version 1
+
+- Initial specification. Resolution read the JWKS file and fell back to OAuth2/OIDC discovery on any miss.
 
 ---
 
