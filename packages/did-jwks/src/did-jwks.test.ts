@@ -303,4 +303,53 @@ describe("fetchJwksDidDocument()", () => {
       fetchJwksDidDocument(did, { fetch: mockFetch })
     ).rejects.toThrow("body stream aborted")
   })
+
+  it("rejects pct-encoded userinfo that would redirect resolution to another host", async () => {
+    const mockFetch = mockFetchFn({
+      keys: [
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "test-key-1",
+          alg: "RS256",
+          n: "test-n-value",
+          e: "AQAB"
+        }
+      ]
+    })
+
+    // %40 decodes to "@", making "good.com" URL userinfo and evil.com the host
+    const did = "did:jwks:good.com%40evil.com"
+
+    await expect(
+      fetchJwksDidDocument(did, { fetch: mockFetch })
+    ).rejects.toThrow("userinfo")
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it("does not grant http to allowed hosts hidden behind pct-encoded userinfo", async () => {
+    const mockFetch = mockFetchFn({
+      keys: [
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "test-key-1",
+          alg: "RS256",
+          n: "test-n-value",
+          e: "AQAB"
+        }
+      ]
+    })
+
+    // "localhost" matches allowedHttpHosts, but the decoded host is attacker.com
+    const did = "did:jwks:localhost%3A3000%40attacker.com"
+
+    await expect(
+      fetchJwksDidDocument(did, {
+        fetch: mockFetch,
+        allowedHttpHosts: ["localhost"]
+      })
+    ).rejects.toThrow("userinfo")
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
 })
