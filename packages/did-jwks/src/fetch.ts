@@ -3,36 +3,18 @@ import { JsonWebKeySetSchema } from "web-identity-schemas/valibot"
 
 import { createDidJwksDidDocument } from "./did-jwks"
 import { fetchWithSchema } from "./utils/fetch-with-schema"
-import { OpenIDConfigurationSchema } from "./utils/schemas"
-
-interface ResolutionUrls {
-  readonly jwks: string
-  readonly openidConfiguration: string
-}
 
 /**
- * Build JWKS and OIDC discovery URLs based on whether the DID contains a path.
+ * Build the fixed JWKS location for a `did:jwks` base URL.
  *
  * Root DIDs use `.well-known` exclusively (RFC 8615 compliant).
- * Path DIDs use direct file paths for JWKS and RFC 8414-style discovery
- * where `.well-known/openid-configuration` is inserted between the origin and path.
+ * Path DIDs use a direct file path below the DID path.
  */
-function buildResolutionUrls(base: string): ResolutionUrls {
+function buildJwksUrl(base: string): string {
   const url = new URL(base)
   const hasPath = url.pathname !== "/" && url.pathname !== ""
 
-  if (hasPath) {
-    const path = url.pathname.replace(/^\/+|\/+$/g, "")
-    return {
-      jwks: `${base}/jwks.json`,
-      openidConfiguration: `${url.origin}/.well-known/openid-configuration/${path}`
-    }
-  }
-
-  return {
-    jwks: `${base}/.well-known/jwks.json`,
-    openidConfiguration: `${base}/.well-known/openid-configuration`
-  }
+  return hasPath ? `${base}/jwks.json` : `${base}/.well-known/jwks.json`
 }
 
 export interface FetchJwksOptions {
@@ -51,33 +33,23 @@ export interface FetchJwksOptions {
   allowedHttpHosts?: string[]
 }
 
+/**
+ * Fetches the JWKS for a `did:jwks` DID from its fixed location.
+ *
+ * Resolution reads exactly one location. A 404, an error status or a
+ * malformed document returns `null`, and a network error rejects. There is
+ * no fallback to another location.
+ */
 export async function fetchJwks(
   did: Did<"jwks">,
   opts: FetchJwksOptions = {}
 ): Promise<JsonWebKeySet | null> {
   const base = buildBaseUrl(did, opts.allowedHttpHosts)
-  const urls = buildResolutionUrls(base)
-
-  const jwks = await fetchWithSchema(urls.jwks, JsonWebKeySetSchema, opts.fetch)
-  if (jwks) {
-    return jwks
-  }
-
-  // If JWKS fetch fails, try OpenID configuration discovery
-  const openidConfig = await fetchWithSchema(
-    urls.openidConfiguration,
-    OpenIDConfigurationSchema,
+  return await fetchWithSchema(
+    buildJwksUrl(base),
+    JsonWebKeySetSchema,
     opts.fetch
   )
-  if (openidConfig?.jwks_uri) {
-    return await fetchWithSchema(
-      openidConfig.jwks_uri,
-      JsonWebKeySetSchema,
-      opts.fetch
-    )
-  }
-
-  return null
 }
 
 /**
