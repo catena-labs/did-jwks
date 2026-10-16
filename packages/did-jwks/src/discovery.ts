@@ -23,14 +23,24 @@ function buildDiscoveryUrl(identityUrl: string): string {
     : `${url.origin}/.well-known/openid-configuration`
 }
 
-function isSecureUrl(
-  value: string,
+/**
+ * A `jwks_uri` must use `https`. The only exception is local testing: an
+ * `http` identity URL may name an `http` `jwks_uri` on an allowed http host.
+ */
+function isAllowedJwksUri(
+  jwksUri: string,
+  identityUrl: string,
   allowedHttpHosts: readonly string[]
 ): boolean {
-  const url = new URL(value)
+  const url = new URL(jwksUri)
+  if (url.protocol === "https:") {
+    return true
+  }
+
   return (
-    url.protocol === "https:" ||
-    (url.protocol === "http:" && allowedHttpHosts.includes(url.hostname))
+    url.protocol === "http:" &&
+    new URL(identityUrl).protocol === "http:" &&
+    allowedHttpHosts.includes(url.hostname)
   )
 }
 
@@ -39,7 +49,8 @@ function isSecureUrl(
  * Connect discovery document.
  *
  * The document's `issuer` must exactly equal the identity URL, and its
- * `jwks_uri` must use `https`. The `jwks_uri` may be on a different origin.
+ * `jwks_uri` must use `https` (see `isAllowedJwksUri` for the local-testing
+ * exception). The `jwks_uri` may be on a different origin.
  *
  * @returns The `jwks_uri`, or `null` if the document is missing, malformed
  * or fails a check.
@@ -58,7 +69,11 @@ export async function discoverJwksUri(
     return null
   }
 
-  return isSecureUrl(config.jwks_uri, opts.allowedHttpHosts ?? [])
+  return isAllowedJwksUri(
+    config.jwks_uri,
+    identityUrl,
+    opts.allowedHttpHosts ?? []
+  )
     ? config.jwks_uri
     : null
 }
