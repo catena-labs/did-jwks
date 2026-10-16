@@ -158,7 +158,7 @@ describe("fetchJwksDidDocument() with opt-in discovery", () => {
     expect(mockFetch).toHaveBeenCalledWith(exampleDiscovery)
   })
 
-  it("returns null without reading the fixed path when jwks_uri is missing", async () => {
+  it("returns null without reading the fixed path when the jwks_uri returns 404", async () => {
     const mockFetch = createMockFetch({
       [exampleFixedJwks]: { keys: [rsaKey("fixed")] },
       [exampleDiscovery]: {
