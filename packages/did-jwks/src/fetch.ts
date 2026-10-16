@@ -75,9 +75,8 @@ async function selectJwksUrl(
  * is the only key location. If the discovery document returns 404, the
  * fallback `jwks.json` location is the only key location, unless
  * `opts.jwksFallback` is `false`. An empty key set counts as malformed. A
- * failure at the
- * selected location returns `null` and never moves to another location. A
- * network error rejects.
+ * failure at the selected location returns `null` and never moves to another
+ * location. A network error rejects.
  */
 export async function fetchJwks(
   did: Did<"jwks">,

@@ -102,7 +102,7 @@ Construct the DID Document for _did_ as follows:
      - **Root DIDs** (no path): `https://{domain}/.well-known/jwks.json`
      - **Path DIDs**: `https://{domain}/{path}/jwks.json`
    - If the result is _invalid_, resolution fails.
-1. **Fetch the JWKS** from the selected location. If the response is not a success, if the request fails, or if the body is not a valid JWKS, resolution fails. The resolver MUST NOT fetch keys from any other location. In particular, it MUST NOT fetch the fallback JWKS file after a `jwks_uri` miss.
+1. **Fetch the JWKS** from the selected location. If the response is not a success, if the request fails, or if the body is not a valid JWKS, resolution fails. A JWKS with an empty `keys` array is not valid. The resolver MUST NOT fetch keys from any other location. In particular, it MUST NOT fetch the fallback JWKS file after a `jwks_uri` miss.
 1. **Generate DID Document**:
    - Set `id` to _did_
    - Set `@context` to `["https://www.w3.org/ns/did/v1"]`
@@ -117,6 +117,8 @@ Construct the DID Document for _did_ as follows:
 
 When resolution fails, the resolver returns a null DID document and an error in the DID resolution metadata (for example, `notFound`).
 
+Every fetch uses `https`. If a resolver follows redirects, the URL that a response lands on MUST also use `https`. A response that lands on an `http` URL is a failure: for the discovery document, the result is _invalid_, never _missing_.
+
 #### Discover the JWKS URI
 
 1. Fetch the discovery document:
@@ -126,7 +128,7 @@ When resolution fails, the resolver returns a null DID document and an error in 
 1. If the request fails, the resolution fails.
 1. If the response has any other status that is not a success, or if the body is not a JSON object, the result is _invalid_.
 1. The `issuer` member MUST be present. It MUST equal the identity URL, or the identity URL followed by one `/`, compared as strings. If not, the result is _invalid_.
-1. The `jwks_uri` member MUST be present and MUST be an absolute `https` URL. If not, the result is _invalid_. The `jwks_uri` MAY be on a different origin from the identity URL (see [jwks_uri Origin](#jwks_uri-origin)).
+1. The `jwks_uri` member MUST be present and MUST be an absolute `https` URL with no userinfo component. If not, the result is _invalid_. The `jwks_uri` MAY be on a different origin from the identity URL (see [jwks_uri Origin](#jwks_uri-origin)).
 1. Otherwise, the result is _found_ with the `jwks_uri`.
 
 A resolver MUST NOT fetch a second discovery document. For path DIDs, it MUST NOT fetch the OpenID Connect Discovery 1.0 form (`https://{domain}/{path}/.well-known/openid-configuration`).
@@ -360,7 +362,9 @@ Breaking change to resolution.
 - Resolution reads the OAuth2/OIDC discovery document first. When it is valid, its `jwks_uri` is the only key location, and the JWKS file is never read.
 - The JWKS file is a fallback only when the discovery document returns 404. Any other discovery failure ends resolution.
 - A miss at the selected location ends resolution. Key sets from two locations are never combined.
-- The discovery `issuer` MUST equal the identity URL, with one terminating `/` allowed. The `jwks_uri` MUST use `https`, and MAY be on a different origin.
+- The discovery `issuer` MUST equal the identity URL, with one terminating `/` allowed. The `jwks_uri` MUST use `https`, MUST NOT carry userinfo, and MAY be on a different origin.
+- A redirect that lands on an `http` URL is a failure, and never counts as a discovery 404.
+- A JWKS with an empty `keys` array is malformed, so resolution fails.
 - Path DIDs read only the RFC 8414 insertion form of the discovery document.
 - Resolvers MAY offer discovery-only resolution, which turns off the fallback.
 - Reason: version 1 read the JWKS file first and fell back to discovery on any miss. Deleting `jwks.json` then did not revoke keys, because resolvers read a different key set from the discovery document.

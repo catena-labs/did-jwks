@@ -107,7 +107,7 @@ const jwksResult = await resolver.resolve("did:jwks:example.com")
    - Valid discovery document: its `jwks_uri`. The `issuer` must equal the DID's URL (one terminating `/` allowed).
    - Discovery returns 404: `https://domain/.well-known/jwks.json` or `https://domain/{path}/jwks.json` (unless `jwksFallback` is `false`).
    - Any other discovery result: resolution fails.
-4. **Fetch JWKS** from the selected location. A miss fails. It never moves to another location.
+4. **Fetch JWKS** from the selected location. A miss, an empty key set, or a redirect to `http` fails. It never moves to another location.
 5. **Transform**: Converts JWKS to DID verification methods
 6. **Return**: Standard DID Resolution result
 

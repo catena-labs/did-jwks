@@ -61,10 +61,10 @@ const didDocument = await fetchJwksDidDocument("did:jwks:example.com", {
    - Root DID: `https://domain/.well-known/openid-configuration`
    - Path DID: `https://domain/.well-known/openid-configuration/{path}`
 3. **Select one key location**:
-   - Valid discovery document: its `jwks_uri`. The `issuer` must equal the DID's URL (one terminating `/` allowed). The `jwks_uri` must use `https`, and may be on a different origin.
+   - Valid discovery document: its `jwks_uri`. The `issuer` must equal the DID's URL (one terminating `/` allowed). The `jwks_uri` must use `https`, must not carry userinfo, and may be on a different origin.
    - Discovery returns 404: the fallback file, `https://domain/.well-known/jwks.json` or `https://domain/{path}/jwks.json` (unless `jwksFallback` is `false`).
    - Any other discovery result: resolution fails.
-4. **Fetch JWKS** from the selected location. A miss fails. It never moves to another location.
+4. **Fetch JWKS** from the selected location. A miss, an empty key set, or a redirect to `http` fails. It never moves to another location.
 5. **Transform**: Converts JWKS keys to DID verification methods
 6. **Generate**: Creates a standard DID document
 
