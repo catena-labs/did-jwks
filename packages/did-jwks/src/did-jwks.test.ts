@@ -11,6 +11,7 @@ import appleidAppleJwks from "@repo/test-utils/fixtures/appleid-apple-jwks.json"
 import appleidAppleOidc from "@repo/test-utils/fixtures/appleid-apple-oidc.json"
 import exampleAuth0Jwks from "@repo/test-utils/fixtures/example-auth0-jwks.json"
 import tokenActionsGitHubJwks from "@repo/test-utils/fixtures/token-actions-githubusercontent-jwks.json"
+import tokenActionsGitHubOidc from "@repo/test-utils/fixtures/token-actions-githubusercontent-oidc.json"
 import { describe, it, expect, vi, afterEach } from "vitest"
 
 import { fetchJwksDidDocument } from "./fetch"
@@ -144,19 +145,24 @@ describe("fetchJwksDidDocument()", () => {
     )
   })
 
-  it("resolves did:jwks:token.actions.githubusercontent.com", async () => {
-    const mockFetch = mockFetchFn(tokenActionsGitHubJwks)
+  it("does not resolve did:jwks:token.actions.githubusercontent.com without opt-in discovery", async () => {
+    const mockFetch = createMockFetch({
+      "https://token.actions.githubusercontent.com/.well-known/openid-configuration":
+        tokenActionsGitHubOidc,
+      "https://token.actions.githubusercontent.com/.well-known/jwks":
+        tokenActionsGitHubJwks
+    })
 
     const did = "did:jwks:token.actions.githubusercontent.com"
     const doc = await fetchJwksDidDocument(did, {
       fetch: mockFetch
     })
 
+    expect(doc).toBeNull()
     expect(mockFetch).toHaveBeenCalledTimes(1)
     expect(mockFetch).toHaveBeenCalledWith(
       "https://token.actions.githubusercontent.com/.well-known/jwks.json"
     )
-    expectJwksDidDocument(did, doc)
   })
 
   it("resolves did:jwks:example.auth0.com", async () => {

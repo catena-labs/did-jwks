@@ -1,4 +1,5 @@
 import {
+  createMockFetch,
   createMockOidcHost,
   expectJwksDidDocument,
   mockFetchFn
@@ -9,6 +10,7 @@ import appleidAppleJwks from "@repo/test-utils/fixtures/appleid-apple-jwks.json"
 import appleidAppleOidc from "@repo/test-utils/fixtures/appleid-apple-oidc.json"
 import exampleAuth0Jwks from "@repo/test-utils/fixtures/example-auth0-jwks.json"
 import tokenActionsGitHubJwks from "@repo/test-utils/fixtures/token-actions-githubusercontent-jwks.json"
+import tokenActionsGitHubOidc from "@repo/test-utils/fixtures/token-actions-githubusercontent-oidc.json"
 import { Resolver } from "did-resolver"
 import { expect, describe, it, vi, afterEach } from "vitest"
 
@@ -55,18 +57,62 @@ describe("Resolver", () => {
     )
   })
 
-  it("resolves did:jwks:token.actions.githubusercontent.com", async () => {
-    const mockFetch = mockFetchFn(tokenActionsGitHubJwks)
+  it("resolves did:jwks:accounts.google.com with opt-in discovery", async () => {
+    const mockFetch = createMockFetch({
+      "https://accounts.google.com/.well-known/openid-configuration":
+        accountsGoogleOidc,
+      "https://www.googleapis.com/oauth2/v3/certs": accountsGoogleJwks
+    })
 
-    const did = "did:jwks:token.actions.githubusercontent.com"
-    const resolver = new Resolver(getResolver({ fetch: mockFetch }))
+    const did = "did:jwks:accounts.google.com"
+    const resolver = new Resolver(
+      getResolver({ fetch: mockFetch, discoveryDids: [did] })
+    )
     const doc = await resolver.resolve(did)
 
-    expect(mockFetch).toHaveBeenCalledTimes(1)
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://token.actions.githubusercontent.com/.well-known/jwks.json"
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(mockFetch).not.toHaveBeenCalledWith(
+      "https://accounts.google.com/.well-known/jwks.json"
     )
     expectJwksDidDocument(did, doc.didDocument)
+  })
+
+  it("resolves did:jwks:token.actions.githubusercontent.com with opt-in discovery", async () => {
+    const mockFetch = createMockFetch({
+      "https://token.actions.githubusercontent.com/.well-known/openid-configuration":
+        tokenActionsGitHubOidc,
+      "https://token.actions.githubusercontent.com/.well-known/jwks":
+        tokenActionsGitHubJwks
+    })
+
+    const did = "did:jwks:token.actions.githubusercontent.com"
+    const resolver = new Resolver(
+      getResolver({ fetch: mockFetch, discoveryDids: [did] })
+    )
+    const doc = await resolver.resolve(did)
+
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expectJwksDidDocument(did, doc.didDocument)
+  })
+
+  it("returns notFound when the discovery issuer does not match", async () => {
+    const mockFetch = createMockFetch({
+      "https://accounts.google.com/.well-known/openid-configuration": {
+        ...accountsGoogleOidc,
+        issuer: "https://evil.example"
+      },
+      "https://www.googleapis.com/oauth2/v3/certs": accountsGoogleJwks
+    })
+
+    const did = "did:jwks:accounts.google.com"
+    const resolver = new Resolver(
+      getResolver({ fetch: mockFetch, discoveryDids: [did] })
+    )
+    const doc = await resolver.resolve(did)
+
+    expect(doc.didDocument).toBeNull()
+    expect(doc.didResolutionMetadata.error).toBe("notFound")
+    expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 
   it("resolves did:jwks:example.auth0.com", async () => {
