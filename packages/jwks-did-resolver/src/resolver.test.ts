@@ -93,6 +93,21 @@ describe("Resolver", () => {
     expectJwksDidDocument(did, doc.didDocument)
   })
 
+  it("returns notFound after a discovery 404 when jwksFallback is false", async () => {
+    const mockFetch = createMockFetch({
+      "https://auth.example.com/tenant123/jwks.json": { keys: [rsaKey] }
+    })
+
+    const resolver = new Resolver(
+      getResolver({ fetch: mockFetch, jwksFallback: false })
+    )
+    const doc = await resolver.resolve("did:jwks:auth.example.com:tenant123")
+
+    expect(doc.didDocument).toBeNull()
+    expect(doc.didResolutionMetadata.error).toBe("notFound")
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
   it("returns notFound when the discovery issuer does not match", async () => {
     const mockFetch = createMockFetch({
       "https://accounts.google.com/.well-known/openid-configuration": {

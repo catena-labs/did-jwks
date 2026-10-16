@@ -296,3 +296,34 @@ describe("fetchJwksDidDocument() discovery-first resolution", () => {
     })
   })
 })
+
+describe("fetchJwksDidDocument() with jwksFallback: false", () => {
+  it("returns null without reading jwks.json after a discovery 404", async () => {
+    const mockFetch = createMockFetch({
+      [fixedJwksUrl]: { keys: [rsaKey("fixed")] }
+    })
+
+    const doc = await fetchJwksDidDocument(did, {
+      fetch: mockFetch,
+      jwksFallback: false
+    })
+
+    expect(doc).toBeNull()
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch).toHaveBeenCalledWith(discoveryUrl)
+  })
+
+  it("still resolves through a valid discovery document", async () => {
+    const mockFetch = createMockFetch({
+      [discoveryUrl]: discovery,
+      [jwksUri]: { keys: [rsaKey("discovered")] }
+    })
+
+    const doc = await fetchJwksDidDocument(did, {
+      fetch: mockFetch,
+      jwksFallback: false
+    })
+
+    expect(keyIds(doc)).toEqual(["discovered"])
+  })
+})
