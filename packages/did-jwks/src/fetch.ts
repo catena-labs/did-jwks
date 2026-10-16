@@ -32,6 +32,17 @@ export interface FetchJwksOptions {
    * @default []
    */
   allowedHttpHosts?: string[]
+  /**
+   * Read the fallback `jwks.json` location when the discovery document
+   * returns 404.
+   *
+   * Set to `false` for discovery-only resolution: a DID with no discovery
+   * document then fails to resolve. A valid discovery document always wins,
+   * and no other discovery failure falls back, whatever this setting is.
+   *
+   * @default true
+   */
+  jwksFallback?: boolean
 }
 
 /**
@@ -51,7 +62,7 @@ async function selectJwksUrl(
     case "found":
       return discovery.value
     case "missing":
-      return buildJwksUrl(base)
+      return (opts.jwksFallback ?? true) ? buildJwksUrl(base) : null
     case "invalid":
       return null
   }
@@ -62,7 +73,8 @@ async function selectJwksUrl(
  *
  * Discovery comes first. If the discovery document is valid, its `jwks_uri`
  * is the only key location. If the discovery document returns 404, the
- * fallback `jwks.json` location is the only key location. A failure at the
+ * fallback `jwks.json` location is the only key location, unless
+ * `opts.jwksFallback` is `false`. A failure at the
  * selected location returns `null` and never moves to another location. A
  * network error rejects.
  */
