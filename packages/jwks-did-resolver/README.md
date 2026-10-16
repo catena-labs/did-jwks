@@ -31,7 +31,7 @@ Returns a resolver registry for use with `did-resolver`.
 Options:
 
 - `fetch`: The fetch function to use. Default: `globalThis.fetch`.
-- `allowedHttpHosts`: Hosts that may use `http`. All other hosts use `https`. Use this for local development and testing. Default: `[]`.
+- `allowedHttpHosts`: Hosts that may use `http`. All other hosts use `https`. Use this for local development and testing. In discovery mode, an `http` `jwks_uri` is allowed only when the DID itself uses an allowed http host. Default: `[]`.
 - `discoveryDids`: DIDs that resolve through OAuth2/OIDC discovery instead of the fixed JWKS location. DIDs are compared as exact strings. Default: `[]`.
 
 ```typescript

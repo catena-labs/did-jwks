@@ -32,7 +32,7 @@ npx did-jwks --discovery did:jwks:accounts.google.com
 
 ### `fetchJwksDidDocument(did, options?): Promise<DidDocument | null>`
 
-Fetches a DID Document for a `did:jwks` identifier. Returns `null` if the JWKS is missing or malformed.
+Fetches a DID Document for a `did:jwks` identifier. Returns `null` if the JWKS is missing or malformed. A network error rejects the promise.
 
 ```typescript
 import { fetchJwksDidDocument } from "did-jwks"
@@ -45,7 +45,7 @@ console.log(didDocument)
 #### Options
 
 - `fetch`: The fetch function to use. Default: `globalThis.fetch`.
-- `allowedHttpHosts`: Hosts that may use `http`. All other hosts use `https`. Use this for local development and testing. Default: `[]`.
+- `allowedHttpHosts`: Hosts that may use `http`. All other hosts use `https`. Use this for local development and testing. In discovery mode, an `http` `jwks_uri` is allowed only when the DID itself uses an allowed http host. Default: `[]`.
 - `discoveryDids`: DIDs that resolve through OAuth2/OIDC discovery instead of the fixed JWKS location. DIDs are compared as exact strings. Default: `[]`.
 
 ```typescript
