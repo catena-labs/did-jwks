@@ -74,7 +74,8 @@ async function selectJwksUrl(
  * Discovery comes first. If the discovery document is valid, its `jwks_uri`
  * is the only key location. If the discovery document returns 404, the
  * fallback `jwks.json` location is the only key location, unless
- * `opts.jwksFallback` is `false`. A failure at the
+ * `opts.jwksFallback` is `false`. An empty key set counts as malformed. A
+ * failure at the
  * selected location returns `null` and never moves to another location. A
  * network error rejects.
  */
@@ -94,7 +95,9 @@ export async function fetchJwks(
     opts.fetch,
     opts.allowedHttpHosts
   )
-  return jwks.status === "found" ? jwks.value : null
+  return jwks.status === "found" && jwks.value.keys.length > 0
+    ? jwks.value
+    : null
 }
 
 /**
