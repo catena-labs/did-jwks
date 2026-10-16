@@ -287,6 +287,179 @@ describe("fetchJwksDidDocument()", () => {
       "https://example.com/.well-known/openid-configuration"
     )
   })
+  it("ignores an http jwks_uri when the host is not an allowed http host", async () => {
+    const calls: string[] = []
+    const mockFetch = vi.fn((url: string) => {
+      calls.push(url)
+
+      if (url === "https://example.com/.well-known/openid-configuration") {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({ jwks_uri: "http://example.com/oauth2/keys" })
+        })
+      }
+
+      return Promise.resolve({ ok: false, status: 404 })
+    }) as unknown as typeof globalThis.fetch
+
+    const doc = await fetchJwksDidDocument("did:jwks:example.com", {
+      fetch: mockFetch
+    })
+
+    expect(doc).toBeNull()
+    expect(calls).not.toContain("http://example.com/oauth2/keys")
+  })
+
+  it("ignores a jwks_uri that does not use http(s)", async () => {
+    const calls: string[] = []
+    const mockFetch = vi.fn((url: string) => {
+      calls.push(url)
+
+      if (url === "https://example.com/.well-known/openid-configuration") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ jwks_uri: "file:///etc/jwks.json" })
+        })
+      }
+
+      return Promise.resolve({ ok: false, status: 404 })
+    }) as unknown as typeof globalThis.fetch
+
+    const doc = await fetchJwksDidDocument("did:jwks:example.com", {
+      fetch: mockFetch
+    })
+
+    expect(doc).toBeNull()
+    expect(calls).not.toContain("file:///etc/jwks.json")
+  })
+
+  it("allows an http jwks_uri for an explicitly allowed http host", async () => {
+    const mockFetch = vi.fn((url: string) => {
+      if (url === "http://localhost:3000/.well-known/openid-configuration") {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({ jwks_uri: "http://localhost:3000/keys" })
+        })
+      }
+
+      if (url === "http://localhost:3000/keys") {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              keys: [
+                {
+                  kty: "RSA",
+                  use: "sig",
+                  kid: "test-key-1",
+                  alg: "RS256",
+                  n: "test-n-value",
+                  e: "AQAB"
+                }
+              ]
+            })
+        })
+      }
+
+      return Promise.resolve({ ok: false, status: 404 })
+    }) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:localhost%3A3000"
+    const doc = await fetchJwksDidDocument(did, {
+      fetch: mockFetch,
+      allowedHttpHosts: ["localhost"]
+    })
+
+    expect(mockFetch).toHaveBeenCalledWith("http://localhost:3000/keys")
+    expectJwksDidDocument(did, doc)
+  })
+  it("ignores a jwks_uri that redirects to http on a host that is not allowed", async () => {
+    const mockFetch = vi.fn((url: string) => {
+      if (url === "https://example.com/.well-known/openid-configuration") {
+        return Promise.resolve({
+          ok: true,
+          url,
+          json: () =>
+            Promise.resolve({ jwks_uri: "https://example.com/oauth2/keys" })
+        })
+      }
+
+      // The declared jwks_uri is https, but the response came back from a
+      // plaintext URL: `fetch` follows redirects, and nothing in the Fetch
+      // standard stops one from crossing schemes.
+      if (url === "https://example.com/oauth2/keys") {
+        return Promise.resolve({
+          ok: true,
+          url: "http://example.com/oauth2/keys",
+          json: () =>
+            Promise.resolve({
+              keys: [
+                {
+                  kty: "RSA",
+                  use: "sig",
+                  kid: "test-key-1",
+                  alg: "RS256",
+                  n: "test-n-value",
+                  e: "AQAB"
+                }
+              ]
+            })
+        })
+      }
+
+      return Promise.resolve({ ok: false, status: 404 })
+    }) as unknown as typeof globalThis.fetch
+
+    const doc = await fetchJwksDidDocument("did:jwks:example.com", {
+      fetch: mockFetch
+    })
+
+    // The key set itself is well formed, so a null document can only come from
+    // the transport check on the redirected URL.
+    expect(doc).toBeNull()
+  })
+
+  it("follows a jwks_uri that redirects to another https origin", async () => {
+    const did = "did:jwks:example.com"
+    const mockFetch = vi.fn((url: string) => {
+      if (url === "https://example.com/.well-known/openid-configuration") {
+        return Promise.resolve({
+          ok: true,
+          url,
+          json: () =>
+            Promise.resolve({ jwks_uri: "https://example.com/oauth2/keys" })
+        })
+      }
+
+      if (url === "https://example.com/oauth2/keys") {
+        return Promise.resolve({
+          ok: true,
+          url: "https://keys.example.net/jwks.json",
+          json: () =>
+            Promise.resolve({
+              keys: [
+                {
+                  kty: "RSA",
+                  use: "sig",
+                  kid: "test-key-1",
+                  alg: "RS256",
+                  n: "test-n-value",
+                  e: "AQAB"
+                }
+              ]
+            })
+        })
+      }
+
+      return Promise.resolve({ ok: false, status: 404 })
+    }) as unknown as typeof globalThis.fetch
+
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expectJwksDidDocument(did, doc)
+  })
 
   it("rethrows non-syntax JSON read failures", async () => {
     const error = new Error("body stream aborted")
