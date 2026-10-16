@@ -8,7 +8,7 @@ Core implementation of the [`did:jwks`](https://github.com/catena-labs/did-jwks)
 npm install did-jwks
 ```
 
-In most cases, you will want to use the []`jwks-did-resolver`](../jwks-did-resolver) packages with the [`did-resolver`](https://github.com/decentralized-identity/did-resolver) package.
+In most cases, you will want to use the [`jwks-did-resolver`](../jwks-did-resolver) package with the [`did-resolver`](https://github.com/decentralized-identity/did-resolver) package.
 
 ## Usage
 

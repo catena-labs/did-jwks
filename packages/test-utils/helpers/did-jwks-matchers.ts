@@ -30,11 +30,27 @@ export function expectJwksDidDocument(did: Did<"jwks">, didDocument: unknown) {
     expect(vm).toMatchSchema(VerificationMethodJsonWebKeySchema)
   })
 
-  // Check assertion and authentication methods reference the verification methods
-  expect(didDocument.assertionMethod).toEqual(
-    verificationMethods?.map((vm) => vm.id) ?? []
-  )
-  expect(didDocument.authentication).toEqual(
-    verificationMethods?.map((vm) => vm.id) ?? []
-  )
+  // Split by use field: enc keys go to keyAgreement only
+  const sigMethodIds =
+    verificationMethods
+      ?.filter((vm) => {
+        const jwk = (vm as { publicKeyJwk?: { use?: string } }).publicKeyJwk
+        return jwk?.use !== "enc"
+      })
+      .map((vm) => vm.id) ?? []
+
+  const encMethodIds =
+    verificationMethods
+      ?.filter((vm) => {
+        const jwk = (vm as { publicKeyJwk?: { use?: string } }).publicKeyJwk
+        return jwk?.use === "enc"
+      })
+      .map((vm) => vm.id) ?? []
+
+  expect(didDocument.assertionMethod).toEqual(sigMethodIds)
+  expect(didDocument.authentication).toEqual(sigMethodIds)
+
+  if (encMethodIds.length > 0) {
+    expect(didDocument.keyAgreement).toEqual(encMethodIds)
+  }
 }
