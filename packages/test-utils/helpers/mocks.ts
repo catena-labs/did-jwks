@@ -29,6 +29,34 @@ export function createMockOidcHost({
   }) as unknown as typeof globalThis.fetch
 }
 
+/**
+ * Create a fetch mock that serves each JSON body at its exact URL and
+ * returns 404 for every other URL.
+ */
+export function createMockFetch(routes: Record<string, object>) {
+  return vi.fn((url: string) => {
+    const body = routes[url]
+    if (body === undefined) {
+      return Promise.resolve({ ok: false, status: 404 })
+    }
+
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(body)
+    })
+  }) as unknown as typeof globalThis.fetch
+}
+
+/**
+ * Create a fetch mock that returns the same error status for every URL.
+ */
+export function mockFetchStatus(status: number) {
+  return vi.fn(() =>
+    Promise.resolve({ ok: false, status })
+  ) as unknown as typeof globalThis.fetch
+}
+
 export function mockFetchFn(json = {}) {
   return vi.fn(() =>
     Promise.resolve({

@@ -19,7 +19,7 @@ describe("Resolver", () => {
     vi.restoreAllMocks()
   })
 
-  it("resolves did:jwks:accounts.google.com", async () => {
+  it("returns notFound for did:jwks:accounts.google.com without opt-in discovery", async () => {
     const mockFetch = createMockOidcHost({
       jwks: accountsGoogleJwks,
       oidc: accountsGoogleOidc
@@ -29,23 +29,15 @@ describe("Resolver", () => {
     const resolver = new Resolver(getResolver({ fetch: mockFetch }))
     const doc = await resolver.resolve(did)
 
-    expect(mockFetch).toHaveBeenCalledTimes(3)
-    // 404:
+    expect(doc.didDocument).toBeNull()
+    expect(doc.didResolutionMetadata.error).toBe("notFound")
+    expect(mockFetch).toHaveBeenCalledTimes(1)
     expect(mockFetch).toHaveBeenCalledWith(
       "https://accounts.google.com/.well-known/jwks.json"
     )
-    // Config:
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://accounts.google.com/.well-known/openid-configuration"
-    )
-    // JWKS:
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://www.googleapis.com/oauth2/v3/certs"
-    )
-    expectJwksDidDocument(did, doc.didDocument)
   })
 
-  it("resolves did:jwks:appleid.apple.com", async () => {
+  it("returns notFound for did:jwks:appleid.apple.com without opt-in discovery", async () => {
     const mockFetch = createMockOidcHost({
       jwks: appleidAppleJwks,
       oidc: appleidAppleOidc
@@ -55,20 +47,12 @@ describe("Resolver", () => {
     const resolver = new Resolver(getResolver({ fetch: mockFetch }))
     const doc = await resolver.resolve(did)
 
-    expect(mockFetch).toHaveBeenCalledTimes(3)
-    // 404:
+    expect(doc.didDocument).toBeNull()
+    expect(doc.didResolutionMetadata.error).toBe("notFound")
+    expect(mockFetch).toHaveBeenCalledTimes(1)
     expect(mockFetch).toHaveBeenCalledWith(
       "https://appleid.apple.com/.well-known/jwks.json"
     )
-    // Config:
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://appleid.apple.com/.well-known/openid-configuration"
-    )
-    // JWKS:
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://appleid.apple.com/auth/keys"
-    )
-    expectJwksDidDocument(did, doc.didDocument)
   })
 
   it("resolves did:jwks:token.actions.githubusercontent.com", async () => {
@@ -161,5 +145,6 @@ describe("Resolver", () => {
     expect(doc.didDocument).toBeNull()
     expect(doc.didResolutionMetadata.error).toBe("notFound")
     expect(doc.didResolutionMetadata.message).toBe("No JWKS found")
+    expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 })
