@@ -268,6 +268,64 @@ describe("fetchJwksDidDocument()", () => {
     expect(doc).toBeNull()
   })
 
+  it("falls back to discovery when the direct JWKS endpoint is empty", async () => {
+    const jwksData = {
+      keys: [
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "test-key-1",
+          n: "test-n-value",
+          e: "AQAB"
+        }
+      ]
+    }
+
+    const mockFetch = vi.fn((url: string) => {
+      if (url === "https://example.com/.well-known/jwks.json") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ keys: [] })
+        })
+      }
+      if (url === "https://example.com/.well-known/openid-configuration") {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({ jwks_uri: "https://keys.example.com/certs" })
+        })
+      }
+      if (url === "https://keys.example.com/certs") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(jwksData)
+        })
+      }
+      return Promise.resolve({ ok: false, status: 404 })
+    }) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:example.com"
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/.well-known/openid-configuration"
+    )
+    expect(mockFetch).toHaveBeenCalledWith("https://keys.example.com/certs")
+    expect(doc?.verificationMethod).toHaveLength(1)
+  })
+
+  it("returns null instead of an empty DID document for a keyless JWKS", async () => {
+    const mockFetch = mockFetchFn({ keys: [] })
+
+    const did = "did:jwks:example.com"
+    const doc = await fetchJwksDidDocument(did, {
+      fetch: mockFetch,
+      allowedHttpHosts: ["localhost"]
+    })
+
+    expect(doc).toBeNull()
+  })
+
   it("returns null when JWKS and discovery responses are invalid JSON", async () => {
     const mockFetch = vi.fn(() =>
       Promise.resolve({
