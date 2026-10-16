@@ -163,6 +163,29 @@ describe("fetchJwksDidDocument() discovery-first resolution", () => {
     expect(mockFetch).not.toHaveBeenCalledWith(fixedJwksUrl)
   })
 
+  it("does not fall back when the jwks_uri key set is empty", async () => {
+    const mockFetch = createMockFetch({
+      [discoveryUrl]: discovery,
+      [jwksUri]: { keys: [] },
+      [fixedJwksUrl]: { keys: [rsaKey("fixed")] }
+    })
+
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(doc).toBeNull()
+    expect(mockFetch).not.toHaveBeenCalledWith(fixedJwksUrl)
+  })
+
+  it("returns null when the fallback key set is empty", async () => {
+    const mockFetch = createMockFetch({
+      [fixedJwksUrl]: { keys: [] }
+    })
+
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(doc).toBeNull()
+  })
+
   it("rejects without a fallback when discovery has a network error", async () => {
     const mockFetch = vi
       .fn()

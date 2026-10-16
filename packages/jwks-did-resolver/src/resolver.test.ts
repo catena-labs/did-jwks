@@ -125,6 +125,18 @@ describe("Resolver", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 
+  it("returns notFound when the key set is empty", async () => {
+    const mockFetch = createMockFetch({
+      "https://example.com/.well-known/jwks.json": { keys: [] }
+    })
+
+    const resolver = new Resolver(getResolver({ fetch: mockFetch }))
+    const doc = await resolver.resolve("did:jwks:example.com")
+
+    expect(doc.didDocument).toBeNull()
+    expect(doc.didResolutionMetadata.error).toBe("notFound")
+  })
+
   it("returns error when fetch throws an exception", async () => {
     const mockFetch = vi
       .fn()
