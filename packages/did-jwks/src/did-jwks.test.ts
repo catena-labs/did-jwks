@@ -303,4 +303,101 @@ describe("fetchJwksDidDocument()", () => {
       fetchJwksDidDocument(did, { fetch: mockFetch })
     ).rejects.toThrow("body stream aborted")
   })
+
+  it("rejects HTTPS JWKS responses that redirect to disallowed http URLs", async () => {
+    const jwksData = {
+      keys: [
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "test-key-1",
+          n: "test-n-value",
+          e: "AQAB"
+        }
+      ]
+    }
+
+    const mockFetch = vi.fn((url: string) => {
+      if (url === "https://example.com/.well-known/jwks.json") {
+        return Promise.resolve({
+          ok: true,
+          // Simulate fetch following a redirect to cleartext HTTP
+          url: "http://evil.example/.well-known/jwks.json",
+          json: () => Promise.resolve(jwksData)
+        })
+      }
+      return Promise.resolve({ ok: false, status: 404 })
+    }) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:example.com"
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(doc).toBeNull()
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://example.com/.well-known/jwks.json"
+    )
+  })
+
+  it("allows HTTPS responses that redirect to another https URL", async () => {
+    const jwksData = {
+      keys: [
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "test-key-1",
+          n: "test-n-value",
+          e: "AQAB"
+        }
+      ]
+    }
+
+    const mockFetch = vi.fn((url: string) => {
+      if (url === "https://example.com/.well-known/jwks.json") {
+        return Promise.resolve({
+          ok: true,
+          url: "https://cdn.example.com/jwks.json",
+          json: () => Promise.resolve(jwksData)
+        })
+      }
+      return Promise.resolve({ ok: false, status: 404 })
+    }) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:example.com"
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expectJwksDidDocument(did, doc)
+  })
+
+  it("allows http redirects only for allowedHttpHosts", async () => {
+    const jwksData = {
+      keys: [
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "test-key-1",
+          n: "test-n-value",
+          e: "AQAB"
+        }
+      ]
+    }
+
+    const mockFetch = vi.fn((url: string) => {
+      if (url === "http://localhost:3000/.well-known/jwks.json") {
+        return Promise.resolve({
+          ok: true,
+          url: "http://localhost:3000/keys/jwks.json",
+          json: () => Promise.resolve(jwksData)
+        })
+      }
+      return Promise.resolve({ ok: false, status: 404 })
+    }) as unknown as typeof globalThis.fetch
+
+    const did = "did:jwks:localhost%3A3000"
+    const doc = await fetchJwksDidDocument(did, {
+      fetch: mockFetch,
+      allowedHttpHosts: ["localhost"]
+    })
+
+    expectJwksDidDocument(did, doc)
+  })
 })
