@@ -59,8 +59,9 @@ function isAllowedJwksUri(
  * Connect discovery document.
  *
  * @returns `found` with the `jwks_uri`, `missing` if the discovery document
- * returns 404, or `invalid` if the document fails to fetch, parse, or pass the
- * `issuer` and `jwks_uri` checks. A network error rejects.
+ * returns 404, or `invalid` if it returns a status that is not a success or
+ * 404, fails to parse, or fails the `issuer` or `jwks_uri` check. A network
+ * error rejects.
  */
 export async function discoverJwksUri(
   identityUrl: string,
