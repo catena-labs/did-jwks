@@ -8,7 +8,7 @@ Core implementation of the [`did:jwks`](https://github.com/catena-labs/did-jwks)
 npm install did-jwks
 ```
 
-In most cases, you will want to use the []`jwks-did-resolver`](../jwks-did-resolver) packages with the [`did-resolver`](https://github.com/decentralized-identity/did-resolver) package.
+In most cases, you will want to use the [`jwks-did-resolver`](../jwks-did-resolver) packages with the [`did-resolver`](https://github.com/decentralized-identity/did-resolver) package.
 
 ## Usage
 
@@ -23,13 +23,16 @@ console.log(didDocument)
 
 ```bash
 npx did-jwks did:jwks:accounts.google.com
+
+# Discovery-only: do not read jwks.json when discovery returns 404
+npx did-jwks --no-fallback did:jwks:accounts.google.com
 ```
 
 ## API
 
-### `fetchJwksDidDocument(did: string): Promise<DidDocument>`
+### `fetchJwksDidDocument(did, options?): Promise<DidDocument | null>`
 
-Fetches a DID Document for a `did:jwks` identifier.
+Fetches a DID Document for a `did:jwks` identifier. Returns `null` if resolution fails. A network error rejects the promise.
 
 ```typescript
 import { fetchJwksDidDocument } from "did-jwks"
@@ -39,16 +42,31 @@ const didDocument = await fetchJwksDidDocument("did:jwks:example.com")
 console.log(didDocument)
 ```
 
+#### Options
+
+- `fetch`: The fetch function to use. Default: `globalThis.fetch`.
+- `allowedHttpHosts`: Hosts that may use `http`. All other hosts use `https`. Use this for local development and testing. An `http` `jwks_uri` is allowed only when the DID itself uses an allowed http host. Default: `[]`.
+- `jwksFallback`: Read `jwks.json` when the discovery document returns 404. Set to `false` for discovery-only resolution. Default: `true`.
+
+```typescript
+const didDocument = await fetchJwksDidDocument("did:jwks:example.com", {
+  jwksFallback: false
+})
+```
+
 ## How It Works
 
 1. **Parse DID**: Extracts domain and optional path from the DID
-2. **JWKS Discovery**: Attempts to fetch JWKS from:
-   - Root DID direct lookup: `https://domain/.well-known/jwks.json`
-   - Path DID direct lookup: `https://domain/{path}/jwks.json`
-   - Root DID OAuth2 discovery: `https://domain/.well-known/openid-configuration`
-   - Path DID OAuth2 discovery: `https://domain/.well-known/openid-configuration/{path}`
-3. **Transform**: Converts JWKS keys to DID verification methods
-4. **Generate**: Creates a standard DID document
+2. **Discovery**: Fetches the OAuth2/OIDC discovery document:
+   - Root DID: `https://domain/.well-known/openid-configuration`
+   - Path DID: `https://domain/.well-known/openid-configuration/{path}`
+3. **Select one key location**:
+   - Valid discovery document: its `jwks_uri`. The `issuer` must equal the DID's URL (one terminating `/` allowed). The `jwks_uri` must use `https`, must not carry userinfo, and may be on a different origin.
+   - Discovery returns 404: the fallback file, `https://domain/.well-known/jwks.json` or `https://domain/{path}/jwks.json` (unless `jwksFallback` is `false`).
+   - Any other discovery result: resolution fails.
+4. **Fetch JWKS** from the selected location. A miss, an empty key set, or a redirect to `http` at any hop fails. It never moves to another location.
+5. **Transform**: Converts JWKS keys to DID verification methods
+6. **Generate**: Creates a standard DID document
 
 ## Examples
 
@@ -56,7 +74,7 @@ console.log(didDocument)
 
 ```typescript
 const result = await fetchJwksDidDocument("did:jwks:accounts.google.com")
-// Resolves Google's JWKS for OAuth2 token verification
+// Resolves Google's JWKS from https://www.googleapis.com/oauth2/v3/certs
 ```
 
 ### GitHub Actions
