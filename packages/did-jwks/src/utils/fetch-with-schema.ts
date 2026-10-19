@@ -16,38 +16,95 @@ export type FetchResult<T> =
 const MISSING: FetchResult<never> = { status: "missing" }
 const INVALID: FetchResult<never> = { status: "invalid" }
 
+const REDIRECT_STATUSES: ReadonlySet<number> = new Set([
+  301, 302, 303, 307, 308
+])
+const MAX_REDIRECTS = 5
+
 /**
- * A redirect must not downgrade a fetch to `http`. The landed URL must use
- * `https`, unless the request itself used `http` and the landed host is an
- * allowed http host (local testing).
+ * A redirect must not downgrade a fetch to `http`. Each hop must use `https`,
+ * unless the request itself used `http` and the hop is on an allowed http
+ * host (local testing).
  */
-function isAllowedLandedUrl(
+function isAllowedHop(
   requestedUrl: string,
-  landedUrl: string,
+  hopUrl: string,
   allowedHttpHosts: readonly string[]
 ): boolean {
-  const landed = new URL(landedUrl)
-  if (landed.protocol === "https:") {
+  const hop = new URL(hopUrl)
+  if (hop.protocol === "https:") {
     return true
   }
 
   return (
-    landed.protocol === "http:" &&
+    hop.protocol === "http:" &&
     new URL(requestedUrl).protocol === "http:" &&
-    allowedHttpHosts.includes(landed.hostname)
+    allowedHttpHosts.includes(hop.hostname)
   )
+}
+
+interface RedirectState {
+  readonly requestedUrl: string
+  readonly fetchImpl: typeof fetch
+  readonly allowedHttpHosts: readonly string[]
+}
+
+/**
+ * Fetch a URL and follow redirects one hop at a time, so that every hop
+ * passes `isAllowedHop`. With the default redirect mode, `fetch` shows only
+ * the final URL, so an https to http to https chain would pass unseen.
+ *
+ * @returns The final response, or `null` if a hop fails the check, a redirect
+ * has no valid `Location`, there are more than `MAX_REDIRECTS` redirects, or
+ * the runtime hides the redirect (an opaque redirect in a browser).
+ */
+async function fetchWithCheckedRedirects(
+  state: RedirectState,
+  currentUrl: string,
+  redirectsLeft: number
+): Promise<Response | null> {
+  const resp = await state.fetchImpl(currentUrl, { redirect: "manual" })
+  if (resp.type === "opaqueredirect") {
+    return null
+  }
+
+  if (!REDIRECT_STATUSES.has(resp.status)) {
+    // A fetch implementation can ignore `redirect: "manual"` and follow
+    // redirects itself. Then only the landed URL is visible, so check it.
+    const landedUrl = resp.url || currentUrl
+    return isAllowedHop(state.requestedUrl, landedUrl, state.allowedHttpHosts)
+      ? resp
+      : null
+  }
+
+  const location = resp.headers.get("location")
+  if (
+    redirectsLeft === 0 ||
+    location === null ||
+    !URL.canParse(location, currentUrl)
+  ) {
+    return null
+  }
+
+  const nextUrl = new URL(location, currentUrl).href
+  return isAllowedHop(state.requestedUrl, nextUrl, state.allowedHttpHosts)
+    ? await fetchWithCheckedRedirects(state, nextUrl, redirectsLeft - 1)
+    : null
 }
 
 /**
  * Fetches a JSON document from a URL and validates it against a Valibot schema.
  *
+ * Redirects are followed one hop at a time, up to `MAX_REDIRECTS`. Every hop
+ * must use `https` (see `isAllowedHop`).
+ *
  * @param url - The URL to fetch the document from.
  * @param schema - The Valibot schema to validate the document against.
  * @param fetchImpl - The fetch implementation to use.
  * @param allowedHttpHosts - The hosts that a redirect from an `http` request
- * may land on over `http`.
- * @returns The fetch result. A redirect that downgrades to `http` is
- * `invalid`. A network error rejects.
+ * may use over `http`.
+ * @returns The fetch result. A redirect that fails a check is `invalid`, never
+ * `missing`. A network error rejects.
  */
 export async function fetchWithSchema<T extends v.GenericSchema>(
   url: string,
@@ -55,9 +112,12 @@ export async function fetchWithSchema<T extends v.GenericSchema>(
   fetchImpl: typeof fetch = globalThis.fetch,
   allowedHttpHosts: readonly string[] = []
 ): Promise<FetchResult<v.InferOutput<T>>> {
-  const resp = await fetchImpl(url)
-  // A synthetic Response has an empty url; treat it as the requested URL.
-  if (!isAllowedLandedUrl(url, resp.url || url, allowedHttpHosts)) {
+  const resp = await fetchWithCheckedRedirects(
+    { requestedUrl: url, fetchImpl, allowedHttpHosts },
+    url,
+    MAX_REDIRECTS
+  )
+  if (!resp) {
     return INVALID
   }
   if (resp.status === 404) {
