@@ -32,14 +32,20 @@ npx did-jwks --no-fallback did:jwks:accounts.google.com
 
 ### `fetchJwksDidDocument(did, options?): Promise<DidDocument | null>`
 
-Fetches a DID Document for a `did:jwks` identifier. Returns `null` if resolution fails. A network error rejects the promise.
+Fetches a DID Document for a `did:jwks` identifier. Returns `null` if resolution fails. A network error rejects the promise. A DID that does not name a valid URL rejects with `InvalidDidError` before any fetch. Examples: userinfo, an IP address, a port on a host that is not allowed, or an empty, `.` or `..` path segment.
 
 ```typescript
-import { fetchJwksDidDocument } from "did-jwks"
+import { fetchJwksDidDocument, InvalidDidError } from "did-jwks"
 
-const didDocument = await fetchJwksDidDocument("did:jwks:example.com")
-
-console.log(didDocument)
+try {
+  const didDocument = await fetchJwksDidDocument("did:jwks:example.com")
+  console.log(didDocument)
+} catch (error) {
+  if (!(error instanceof InvalidDidError)) {
+    throw error
+  }
+  // The DID is malformed. No request was sent.
+}
 ```
 
 #### Options
