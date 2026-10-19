@@ -315,6 +315,28 @@ describe("fetchWithSchema()", () => {
     })
   })
 
+  it("calls fetch as a plain function on every hop", async () => {
+    const responses = [
+      new Response(null, {
+        status: 302,
+        headers: { location: "https://cdn.example.com/doc" }
+      }),
+      Response.json({ name: "alice" })
+    ]
+    // Browser and Workers fetch throw "Illegal invocation" for any other `this`.
+    const fetch = vi.fn(function (this: unknown) {
+      if (this !== undefined && this !== globalThis) {
+        return Promise.reject(new TypeError("Illegal invocation"))
+      }
+      return Promise.resolve(responses.shift())
+    }) as unknown as typeof globalThis.fetch
+
+    await expect(
+      fetchWithSchema("https://example.com/doc", schema, fetch)
+    ).resolves.toEqual({ status: "found", value: { name: "alice" } })
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
   it("rejects on a network error", async () => {
     const fetch = vi
       .fn()
