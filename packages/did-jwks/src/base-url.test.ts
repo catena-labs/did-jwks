@@ -8,10 +8,23 @@ describe("buildBaseUrl()", () => {
     ["did:jwks:example.com", "https://example.com"],
     ["did:jwks:example.com:user:alice", "https://example.com/user/alice"],
     ["did:jwks:example.com:user:", "https://example.com/user"],
+    ["did:jwks:EXAMPLE.com", "https://example.com"],
     ["did:jwks:example.com:v1.2", "https://example.com/v1.2"],
     ["did:jwks:example.com:foo%2Fbar", "https://example.com/foo%2Fbar"]
   ])("builds %s as %s", (did, expected) => {
     expect(buildBaseUrl(did)).toBe(expected)
+  })
+
+  it("normalizes a port on an allowed http host", () => {
+    expect(buildBaseUrl("did:jwks:localhost%3A09200", ["localhost"])).toBe(
+      "http://localhost:9200"
+    )
+  })
+
+  it("drops the default port on an allowed http host", () => {
+    expect(buildBaseUrl("did:jwks:localhost%3A80", ["localhost"])).toBe(
+      "http://localhost"
+    )
   })
 
   it.each<[string, Did<"jwks">]>([
@@ -26,8 +39,15 @@ describe("buildBaseUrl()", () => {
     ["a single dot segment", "did:jwks:example.com:."],
     ["a double dot segment", "did:jwks:example.com:a:..:b"],
     ["an encoded dot segment", "did:jwks:example.com:a:%2E%2E:b"],
+    ["a host that fails IDNA", "did:jwks:xn--a.com"],
     ["malformed percent-encoding", "did:jwks:example.com:%E0%A4%A"]
   ])("rejects %s", (_, did) => {
     expect(() => buildBaseUrl(did)).toThrow(InvalidDidError)
+  })
+
+  it.each(["0", "65536", "99999"])("rejects port %s", (port) => {
+    expect(() =>
+      buildBaseUrl(`did:jwks:localhost%3A${port}`, ["localhost"])
+    ).toThrow(InvalidDidError)
   })
 })

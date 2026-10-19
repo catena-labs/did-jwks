@@ -7,6 +7,9 @@ export class InvalidDidError extends Error {
   override readonly name = "InvalidDidError"
 }
 
+const MAX_PORT = 65_535
+const DEFAULT_HTTP_PORT = 80
+
 function isValidHostnameLabel(label: string): boolean {
   return (
     label.length > 0 &&
@@ -19,9 +22,10 @@ function isValidHostnameLabel(label: string): boolean {
  * A conservative check for SPEC.md's `domain-name = DNS domain name`
  * grammar: a dot-separated sequence of hostname labels, nothing else.
  *
- * Rejects IP literals by requiring the rightmost label to not be all-digits
- * (a DNS domain name's TLD never is) - this also covers IPv4 dotted-quad
- * addresses like `169.254.169.254`.
+ * Rejects dotted-decimal IPv4 literals like `169.254.169.254` by requiring
+ * the rightmost label to not be all-digits (a DNS domain name's TLD never
+ * is). Other IPv4 forms, such as `0x7f.0.0.0x1`, pass this check, and the
+ * URL check in `buildBaseUrl` rejects them.
  */
 function isValidDomainName(hostname: string): boolean {
   if (hostname.length === 0 || hostname.length > 253) {
@@ -33,6 +37,14 @@ function isValidDomainName(hostname: string): boolean {
     return false
   }
   return labels.every(isValidHostnameLabel)
+}
+
+function parsePort(port: string): number | null {
+  if (!/^\d+$/.test(port)) {
+    return null
+  }
+  const value = Number(port)
+  return value >= 1 && value <= MAX_PORT ? value : null
 }
 
 function invalidAuthority(authority: string): InvalidDidError {
@@ -60,6 +72,7 @@ function decodeSegment(segment: string): string {
  * redirect resolution to a host other than the one it appears to name:
  * userinfo (`@`), path/query/fragment markers (`/`, `?`, `#`), IP literals,
  * and ports outside of `allowedHttpHosts` (used for local development).
+ * The hostname is lowercased, so the identity URL matches a lowercase issuer.
  */
 function validateAuthority(
   authority: string,
@@ -70,8 +83,9 @@ function validateAuthority(
   }
 
   const colonIndex = authority.indexOf(":")
-  const hostname =
+  const hostname = (
     colonIndex === -1 ? authority : authority.slice(0, colonIndex)
+  ).toLowerCase()
   const port = colonIndex === -1 ? null : authority.slice(colonIndex + 1)
   const isAllowed = allowedHttpHosts.includes(hostname)
 
@@ -83,10 +97,13 @@ function validateAuthority(
     return { authority: hostname, protocol: isAllowed ? "http" : "https" }
   }
 
-  if (!/^\d+$/.test(port) || !isAllowed) {
+  const portNumber = parsePort(port)
+  if (portNumber === null || !isAllowed) {
     throw invalidAuthority(authority)
   }
-  return { authority: `${hostname}:${port}`, protocol: "http" }
+  return portNumber === DEFAULT_HTTP_PORT
+    ? { authority: hostname, protocol: "http" }
+    : { authority: `${hostname}:${portNumber}`, protocol: "http" }
 }
 
 /**
@@ -139,12 +156,11 @@ export function buildBaseUrl(
   // Defense in depth: rebuild through the URL parser and confirm it
   // resolved to exactly the validated authority, with no credentials
   // smuggled in through some encoding this function didn't anticipate.
+  if (!URL.canParse(base)) {
+    throw invalidAuthority(rawAuthority)
+  }
   const url = new URL(base)
-  if (
-    url.username !== "" ||
-    url.password !== "" ||
-    url.host !== authority.toLowerCase()
-  ) {
+  if (url.username !== "" || url.password !== "" || url.host !== authority) {
     throw invalidAuthority(rawAuthority)
   }
 
