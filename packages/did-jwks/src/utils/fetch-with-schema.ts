@@ -56,7 +56,8 @@ interface RedirectState {
  *
  * @returns The final response, or `null` if a hop fails the check, a redirect
  * has no valid `Location`, there are more than `MAX_REDIRECTS` redirects, or
- * the runtime hides the redirect (an opaque redirect in a browser).
+ * the hops are hidden (an opaque redirect in a browser, or a fetch
+ * implementation that followed redirects itself).
  */
 async function fetchWithCheckedRedirects(
   state: RedirectState,
@@ -70,7 +71,11 @@ async function fetchWithCheckedRedirects(
 
   if (!REDIRECT_STATUSES.has(resp.status)) {
     // A fetch implementation can ignore `redirect: "manual"` and follow
-    // redirects itself. Then only the landed URL is visible, so check it.
+    // redirects itself. Its hops are hidden and cannot be checked, so fail
+    // closed. The landed-URL check covers implementations without the flag.
+    if (resp.redirected) {
+      return null
+    }
     const landedUrl = resp.url || currentUrl
     return isAllowedHop(state.requestedUrl, landedUrl, state.allowedHttpHosts)
       ? resp
