@@ -229,13 +229,14 @@ describe("fetchJwksDidDocument() authority validation", () => {
       "userinfo in a percent-encoded @",
       "did:jwks:accounts.google.com%40evil.example"
     ],
-    ["a bracketed IPv6 authority", "did:jwks:%5B%3A%3A1%5D"]
+    ["a bracketed IPv6 authority", "did:jwks:%5B%3A%3A1%5D"],
+    ["a dot segment in the path", "did:jwks:example.com:tenant:%2E%2E:admin"]
   ])("rejects %s before any fetch", async (_, did) => {
     const mockFetch = createMockFetch({})
 
     await expect(
       fetchJwksDidDocument(did, { fetch: mockFetch })
-    ).rejects.toThrow(/Invalid did:jwks authority/)
+    ).rejects.toThrow(/Invalid did:jwks/)
     expect(mockFetch).not.toHaveBeenCalled()
   })
 

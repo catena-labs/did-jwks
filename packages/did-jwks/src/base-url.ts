@@ -67,6 +67,19 @@ function validateAuthority(
 }
 
 /**
+ * Decode a path segment and re-encode it, so a decoded `/`, `?`, or `#`
+ * stays inside its own segment. Dot segments are rejected: URL parsing
+ * removes them, which would let one DID resolve another DID's path.
+ */
+function encodePathSegment(segment: string): string {
+  const decoded = decodeURIComponent(segment)
+  if (decoded === "." || decoded === "..") {
+    throw new Error(`Invalid did:jwks path segment: ${JSON.stringify(segment)}`)
+  }
+  return encodeURIComponent(decoded)
+}
+
+/**
  * Build a base URL from a full `did:jwks` URI.
  *
  * @example
@@ -90,12 +103,8 @@ export function buildBaseUrl(
     allowedHttpHosts
   )
 
-  // Decode each path segment, then re-encode it, rather than splicing the
-  // decoded value directly into the URL string: this is what stops a
-  // segment from smuggling in `/`, `?`, `#`, or other URL-structural
-  // characters to reshape the request.
   const path = rawPathSegments
-    .map((segment) => encodeURIComponent(decodeURIComponent(segment)))
+    .map(encodePathSegment)
     .join("/")
     .replace(/\/+$/, "") // Strip trailing slashes in case of trailing colons
 
