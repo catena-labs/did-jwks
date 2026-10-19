@@ -11,10 +11,16 @@ describe("buildBaseUrl()", () => {
   it.each<[Did<"jwks">, string]>([
     ["did:jwks:example.com", "https://example.com"],
     ["did:jwks:example.com:user:alice", "https://example.com/user/alice"],
-    ["did:jwks:example.com:user:", "https://example.com/user"],
     ["did:jwks:EXAMPLE.com", "https://example.com"],
     ["did:jwks:example.com:v1.2", "https://example.com/v1.2"],
-    ["did:jwks:example.com:foo%2Fbar", "https://example.com/foo%2Fbar"]
+    ["did:jwks:example.com:foo%2Fbar", "https://example.com/foo%2Fbar"],
+    ["did:jwks:example.com:a%3Fb%23c", "https://example.com/a%3Fb%23c"],
+    ["did:jwks:example.com:a%25b%5Cc", "https://example.com/a%25b%5Cc"],
+    ["did:jwks:example.com:%40alice", "https://example.com/@alice"],
+    ["did:jwks:example.com:a%3Ab", "https://example.com/a:b"],
+    ["did:jwks:example.com:a:.%09.:b", "https://example.com/a/.%09./b"],
+    ["did:jwks:example.com:a%0Ab%20c", "https://example.com/a%0Ab%20c"],
+    ["did:jwks:example.com:b%C3%BCcher", "https://example.com/b%C3%BCcher"]
   ])("builds %s as %s", (did, expected) => {
     expect(buildBaseUrl(did)).toBe(expected)
   })
@@ -40,6 +46,9 @@ describe("buildBaseUrl()", () => {
     ["a fragment marker", "did:jwks:example.com%23x"],
     ["an empty authority", "did:jwks:"],
     ["a port on a host that is not allowed", "did:jwks:example.com%3A8443"],
+    ["an empty path segment", "did:jwks:example.com::admin"],
+    ["a trailing colon", "did:jwks:example.com:user:"],
+    ["a lone surrogate", "did:jwks:example.com:\uD800"],
     ["a single dot segment", "did:jwks:example.com:."],
     ["a double dot segment", "did:jwks:example.com:a:..:b"],
     ["an encoded dot segment", "did:jwks:example.com:a:%2E%2E:b"],

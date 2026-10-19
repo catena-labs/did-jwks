@@ -107,18 +107,32 @@ function validateAuthority(
 }
 
 /**
- * Decode a path segment and re-encode it, so a decoded `/`, `?`, or `#`
- * stays inside its own segment. Dot segments are rejected: URL parsing
- * removes them, which would let one DID resolve another DID's path.
+ * Characters outside RFC 3986 `pchar`. A decoded segment encodes these again,
+ * so it stays one URL path segment: the URL parser cannot split it at `/`,
+ * `?`, `#`, or `\`, or delete a tab or newline from it. `@`, `:`, and the
+ * sub-delimiters keep their decoded form.
+ */
+const NON_PCHAR = /[^A-Za-z0-9\-._~!$&'()*+,;=:@]/gu
+
+/**
+ * Decode a path segment and encode its non-`pchar` characters again. Empty
+ * and dot segments are rejected: URL handling merges or removes them, which
+ * would let one DID resolve another DID's path. A lone surrogate is rejected
+ * because it has no UTF-8 encoding.
  */
 function encodePathSegment(segment: string): string {
   const decoded = decodeSegment(segment)
-  if (decoded === "." || decoded === "..") {
+  if (
+    decoded === "" ||
+    decoded === "." ||
+    decoded === ".." ||
+    !decoded.isWellFormed()
+  ) {
     throw new InvalidDidError(
       `Invalid did:jwks path segment: ${JSON.stringify(segment)}`
     )
   }
-  return encodeURIComponent(decoded)
+  return decoded.replace(NON_PCHAR, encodeURIComponent)
 }
 
 /**
@@ -146,10 +160,7 @@ export function buildBaseUrl(
     allowedHttpHosts
   )
 
-  const path = rawPathSegments
-    .map(encodePathSegment)
-    .join("/")
-    .replace(/\/+$/, "") // Strip trailing slashes in case of trailing colons
+  const path = rawPathSegments.map(encodePathSegment).join("/")
 
   const base = `${protocol}://${authority}${path ? `/${path}` : ""}`
 
