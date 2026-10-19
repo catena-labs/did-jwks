@@ -21,6 +21,10 @@ function mockRoutes(routes: Record<string, () => Response>) {
   ) as unknown as typeof globalThis.fetch
 }
 
+function responseWithBody(init: ResponseInit, onCancel: () => void) {
+  return new Response(new ReadableStream({ cancel: onCancel }), init)
+}
+
 describe("fetchWithSchema()", () => {
   it("returns found with the parsed value", async () => {
     const fetch = mockResponse({
@@ -335,6 +339,54 @@ describe("fetchWithSchema()", () => {
       fetchWithSchema("https://example.com/doc", schema, fetch)
     ).resolves.toEqual({ status: "found", value: { name: "alice" } })
     expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  describe("unread bodies", () => {
+    it("cancels the body of a redirect that it follows", async () => {
+      const onCancel = vi.fn()
+      const fetch = mockRoutes({
+        "https://example.com/doc": () =>
+          responseWithBody(
+            {
+              status: 302,
+              headers: { location: "https://cdn.example.com/doc" }
+            },
+            onCancel
+          ),
+        "https://cdn.example.com/doc": () => Response.json({ name: "alice" })
+      })
+
+      await fetchWithSchema("https://example.com/doc", schema, fetch)
+
+      expect(onCancel).toHaveBeenCalledTimes(1)
+    })
+
+    it("cancels the body of a redirect that it rejects", async () => {
+      const onCancel = vi.fn()
+      const fetch = mockRoutes({
+        "https://example.com/doc": () =>
+          responseWithBody(
+            { status: 302, headers: { location: "http://example.com/hop" } },
+            onCancel
+          )
+      })
+
+      await expect(
+        fetchWithSchema("https://example.com/doc", schema, fetch)
+      ).resolves.toEqual({ status: "invalid" })
+      expect(onCancel).toHaveBeenCalledTimes(1)
+    })
+
+    it.each([404, 500])("cancels the body of a %i response", async (status) => {
+      const onCancel = vi.fn()
+      const fetch = mockRoutes({
+        "https://example.com/doc": () => responseWithBody({ status }, onCancel)
+      })
+
+      await fetchWithSchema("https://example.com/doc", schema, fetch)
+
+      expect(onCancel).toHaveBeenCalledTimes(1)
+    })
   })
 
   it("rejects on a network error", async () => {
