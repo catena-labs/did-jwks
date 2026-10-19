@@ -82,8 +82,14 @@ async function selectJwksUrl(
  */
 export async function fetchJwks(
   did: Did<"jwks">,
-  opts: FetchJwksOptions = {}
+  rawOpts: FetchJwksOptions = {}
 ): Promise<JsonWebKeySet | null> {
+  const opts = {
+    ...rawOpts,
+    allowedHttpHosts: rawOpts.allowedHttpHosts?.map((host) =>
+      host.toLowerCase()
+    )
+  }
   const base = buildBaseUrl(did, opts.allowedHttpHosts)
   const jwksUrl = await selectJwksUrl(base, opts)
   if (!jwksUrl) {

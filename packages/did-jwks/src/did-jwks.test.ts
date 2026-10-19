@@ -260,6 +260,24 @@ describe("fetchJwksDidDocument() authority validation", () => {
     )
   })
 
+  it("matches allowedHttpHosts without regard to case in every check", async () => {
+    const mockFetch = createMockFetch({
+      "http://localhost:9200/.well-known/openid-configuration": {
+        issuer: "http://localhost:9200",
+        jwks_uri: "http://localhost:9200/keys"
+      },
+      "http://localhost:9200/keys": { keys: [rsaKey] }
+    })
+
+    const did = "did:jwks:LocalHost%3A9200"
+    const doc = await fetchJwksDidDocument(did, {
+      fetch: mockFetch,
+      allowedHttpHosts: ["LocalHost"]
+    })
+
+    expectJwksDidDocument(did, doc)
+  })
+
   it("allows a port on a host in allowedHttpHosts", async () => {
     const mockFetch = createMockFetch({})
 

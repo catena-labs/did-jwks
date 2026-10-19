@@ -73,6 +73,7 @@ function decodeSegment(segment: string): string {
  * userinfo (`@`), path/query/fragment markers (`/`, `?`, `#`), IP literals,
  * and ports outside of `allowedHttpHosts` (used for local development).
  * The hostname is lowercased, so the identity URL matches a lowercase issuer.
+ * `allowedHttpHosts` entries must be lowercase.
  */
 function validateAuthority(
   authority: string,

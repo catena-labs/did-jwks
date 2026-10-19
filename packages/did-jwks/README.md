@@ -45,7 +45,7 @@ console.log(didDocument)
 #### Options
 
 - `fetch`: The fetch function to use. Default: `globalThis.fetch`.
-- `allowedHttpHosts`: Hosts that may use `http`. All other hosts use `https`. Use this for local development and testing. An `http` `jwks_uri` is allowed only when the DID itself uses an allowed http host. Default: `[]`.
+- `allowedHttpHosts`: Hosts that may use `http` and a port. All other hosts use `https` with no port. Entries match without regard to case. Use this for local development and testing. An `http` `jwks_uri` is allowed only when the DID itself uses an allowed http host. Default: `[]`.
 - `jwksFallback`: Read `jwks.json` when the discovery document returns 404. Set to `false` for discovery-only resolution. Default: `true`.
 
 ```typescript
