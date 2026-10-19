@@ -77,7 +77,8 @@ async function selectJwksUrl(
  * fallback `jwks.json` location is the only key location, unless
  * `opts.jwksFallback` is `false`. An empty key set counts as malformed. A
  * failure at the selected location returns `null` and never moves to another
- * location. A network error rejects.
+ * location. A network error rejects. A DID that does not name a valid
+ * resolution URL rejects with `InvalidDidError`.
  */
 export async function fetchJwks(
   did: Did<"jwks">,

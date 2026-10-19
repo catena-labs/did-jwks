@@ -1,4 +1,4 @@
-import { isDidJwks, fetchJwksDidDocument } from "did-jwks"
+import { isDidJwks, fetchJwksDidDocument, InvalidDidError } from "did-jwks"
 import type { FetchJwksOptions } from "did-jwks"
 import type { DIDResolutionResult, DIDResolver } from "did-resolver"
 
@@ -41,6 +41,14 @@ export function getResolver(opts: FetchJwksOptions = {}): {
     try {
       didDocument = await fetchJwksDidDocument(did, opts)
     } catch (e) {
+      if (e instanceof InvalidDidError) {
+        return {
+          didDocument: null,
+          didDocumentMetadata: {},
+          didResolutionMetadata: { error: "invalidDid", message: e.message }
+        }
+      }
+
       return {
         didDocument: null,
         didDocumentMetadata: {},

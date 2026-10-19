@@ -159,6 +159,19 @@ describe("Resolver", () => {
     expect(doc.didResolutionMetadata.message).toBe("Network timeout")
   })
 
+  it("returns invalidDid when the DID names an invalid authority", async () => {
+    const mockFetch = createMockFetch({})
+
+    const resolver = new Resolver(getResolver({ fetch: mockFetch }))
+    const doc = await resolver.resolve(
+      "did:jwks:accounts.google.com%40evil.example"
+    )
+
+    expect(doc.didDocument).toBeNull()
+    expect(doc.didResolutionMetadata.error).toBe("invalidDid")
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
   it("returns error when no JWKS found", async () => {
     const mockFetch = createMockFetch({})
 

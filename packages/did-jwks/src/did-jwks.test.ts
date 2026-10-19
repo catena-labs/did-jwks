@@ -14,6 +14,7 @@ import tokenActionsGitHubOidc from "@repo/test-utils/fixtures/token-actions-gith
 import { describe, it, expect, vi, afterEach } from "vitest"
 import type { Did } from "web-identity-schemas"
 
+import { InvalidDidError } from "./base-url"
 import { fetchJwksDidDocument } from "./fetch"
 
 const rsaKey = {
@@ -236,7 +237,7 @@ describe("fetchJwksDidDocument() authority validation", () => {
 
     await expect(
       fetchJwksDidDocument(did, { fetch: mockFetch })
-    ).rejects.toThrow(/Invalid did:jwks/)
+    ).rejects.toThrow(InvalidDidError)
     expect(mockFetch).not.toHaveBeenCalled()
   })
 

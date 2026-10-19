@@ -1,5 +1,12 @@
 import type { Did } from "web-identity-schemas"
 
+/**
+ * Thrown when a `did:jwks` DID does not name a valid resolution URL.
+ */
+export class InvalidDidError extends Error {
+  override readonly name = "InvalidDidError"
+}
+
 function isValidHostnameLabel(label: string): boolean {
   return (
     label.length > 0 &&
@@ -28,6 +35,22 @@ function isValidDomainName(hostname: string): boolean {
   return labels.every(isValidHostnameLabel)
 }
 
+function invalidAuthority(authority: string): InvalidDidError {
+  return new InvalidDidError(
+    `Invalid did:jwks authority: ${JSON.stringify(authority)}`
+  )
+}
+
+function decodeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment)
+  } catch {
+    throw new InvalidDidError(
+      `Invalid percent-encoding in did:jwks segment: ${JSON.stringify(segment)}`
+    )
+  }
+}
+
 /**
  * Validate a decoded `did:jwks` authority segment and resolve it to the
  * exact host (with an optional port) and protocol to connect to.
@@ -43,7 +66,7 @@ function validateAuthority(
   allowedHttpHosts: string[]
 ): { authority: string; protocol: "http" | "https" } {
   if (/[@/?#]/.test(authority)) {
-    throw new Error(`Invalid did:jwks authority: ${JSON.stringify(authority)}`)
+    throw invalidAuthority(authority)
   }
 
   const colonIndex = authority.indexOf(":")
@@ -53,7 +76,7 @@ function validateAuthority(
   const isAllowed = allowedHttpHosts.includes(hostname)
 
   if (!isValidDomainName(hostname) && !isAllowed) {
-    throw new Error(`Invalid did:jwks authority: ${JSON.stringify(authority)}`)
+    throw invalidAuthority(authority)
   }
 
   if (port === null) {
@@ -61,7 +84,7 @@ function validateAuthority(
   }
 
   if (!/^\d+$/.test(port) || !isAllowed) {
-    throw new Error(`Invalid did:jwks authority: ${JSON.stringify(authority)}`)
+    throw invalidAuthority(authority)
   }
   return { authority: `${hostname}:${port}`, protocol: "http" }
 }
@@ -72,9 +95,11 @@ function validateAuthority(
  * removes them, which would let one DID resolve another DID's path.
  */
 function encodePathSegment(segment: string): string {
-  const decoded = decodeURIComponent(segment)
+  const decoded = decodeSegment(segment)
   if (decoded === "." || decoded === "..") {
-    throw new Error(`Invalid did:jwks path segment: ${JSON.stringify(segment)}`)
+    throw new InvalidDidError(
+      `Invalid did:jwks path segment: ${JSON.stringify(segment)}`
+    )
   }
   return encodeURIComponent(decoded)
 }
@@ -88,6 +113,7 @@ function encodePathSegment(segment: string): string {
  * // base === "https://accounts.google.com/matt"
  * ```
  *
+ * @throws {InvalidDidError} If the DID does not name a valid resolution URL.
  * @returns The base URL
  */
 export function buildBaseUrl(
@@ -99,7 +125,7 @@ export function buildBaseUrl(
     .split(":")
 
   const { authority, protocol } = validateAuthority(
-    decodeURIComponent(rawAuthority),
+    decodeSegment(rawAuthority),
     allowedHttpHosts
   )
 
@@ -119,9 +145,7 @@ export function buildBaseUrl(
     url.password !== "" ||
     url.host !== authority.toLowerCase()
   ) {
-    throw new Error(
-      `Invalid did:jwks authority: ${JSON.stringify(rawAuthority)}`
-    )
+    throw invalidAuthority(rawAuthority)
   }
 
   return base
