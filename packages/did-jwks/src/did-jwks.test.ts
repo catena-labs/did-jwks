@@ -1,4 +1,8 @@
-import { createMockFetch, expectJwksDidDocument } from "@repo/test-utils"
+import {
+  createMockFetch,
+  expectJwksDidDocument,
+  fetchInit
+} from "@repo/test-utils"
 import accountsGoogleJwks from "@repo/test-utils/fixtures/accounts-google-jwks.json"
 import accountsGoogleOidc from "@repo/test-utils/fixtures/accounts-google-oidc.json"
 import appleidAppleJwks from "@repo/test-utils/fixtures/appleid-apple-jwks.json"
@@ -39,11 +43,13 @@ describe("fetchJwksDidDocument()", () => {
     expect(mockFetch).toHaveBeenCalledTimes(2)
     expect(mockFetch).toHaveBeenNthCalledWith(
       1,
-      "http://localhost:3000/.well-known/openid-configuration"
+      "http://localhost:3000/.well-known/openid-configuration",
+      fetchInit
     )
     expect(mockFetch).toHaveBeenNthCalledWith(
       2,
-      "http://localhost:3000/.well-known/jwks.json"
+      "http://localhost:3000/.well-known/jwks.json",
+      fetchInit
     )
     expectJwksDidDocument(did, doc)
   })
@@ -62,11 +68,13 @@ describe("fetchJwksDidDocument()", () => {
     expect(mockFetch).toHaveBeenCalledTimes(2)
     expect(mockFetch).toHaveBeenNthCalledWith(
       1,
-      "http://localhost:3000/.well-known/openid-configuration/user/alice"
+      "http://localhost:3000/.well-known/openid-configuration/user/alice",
+      fetchInit
     )
     expect(mockFetch).toHaveBeenNthCalledWith(
       2,
-      "http://localhost:3000/user/alice/jwks.json"
+      "http://localhost:3000/user/alice/jwks.json",
+      fetchInit
     )
     expectJwksDidDocument(did, doc)
   })
@@ -84,11 +92,13 @@ describe("fetchJwksDidDocument()", () => {
     expect(mockFetch).toHaveBeenCalledTimes(2)
     expect(mockFetch).toHaveBeenNthCalledWith(
       1,
-      "https://accounts.google.com/.well-known/openid-configuration"
+      "https://accounts.google.com/.well-known/openid-configuration",
+      fetchInit
     )
     expect(mockFetch).toHaveBeenNthCalledWith(
       2,
-      "https://www.googleapis.com/oauth2/v3/certs"
+      "https://www.googleapis.com/oauth2/v3/certs",
+      fetchInit
     )
     expectJwksDidDocument(did, doc)
   })
@@ -106,7 +116,8 @@ describe("fetchJwksDidDocument()", () => {
     expect(mockFetch).toHaveBeenCalledTimes(2)
     expect(mockFetch).toHaveBeenNthCalledWith(
       2,
-      "https://appleid.apple.com/auth/keys"
+      "https://appleid.apple.com/auth/keys",
+      fetchInit
     )
     expectJwksDidDocument(did, doc)
   })
@@ -125,7 +136,8 @@ describe("fetchJwksDidDocument()", () => {
     expect(mockFetch).toHaveBeenCalledTimes(2)
     expect(mockFetch).toHaveBeenNthCalledWith(
       2,
-      "https://token.actions.githubusercontent.com/.well-known/jwks"
+      "https://token.actions.githubusercontent.com/.well-known/jwks",
+      fetchInit
     )
     expectJwksDidDocument(did, doc)
   })
@@ -143,7 +155,8 @@ describe("fetchJwksDidDocument()", () => {
     expect(mockFetch).toHaveBeenCalledTimes(2)
     expect(mockFetch).toHaveBeenNthCalledWith(
       1,
-      "https://example.auth0.com/.well-known/openid-configuration"
+      "https://example.auth0.com/.well-known/openid-configuration",
+      fetchInit
     )
     expectJwksDidDocument(did, doc)
   })

@@ -23,3 +23,9 @@ export function createMockFetch(routes: Record<string, MockRoute>) {
     Promise.resolve(mockResponse(routes[url] ?? 404))
   ) as unknown as typeof globalThis.fetch
 }
+
+/**
+ * The init that did-jwks passes to every fetch: it follows redirects itself,
+ * one hop at a time.
+ */
+export const fetchInit: RequestInit = { redirect: "manual" }

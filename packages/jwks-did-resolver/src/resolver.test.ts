@@ -1,4 +1,8 @@
-import { createMockFetch, expectJwksDidDocument } from "@repo/test-utils"
+import {
+  createMockFetch,
+  expectJwksDidDocument,
+  fetchInit
+} from "@repo/test-utils"
 import accountsGoogleJwks from "@repo/test-utils/fixtures/accounts-google-jwks.json"
 import accountsGoogleOidc from "@repo/test-utils/fixtures/accounts-google-oidc.json"
 import exampleAuth0Jwks from "@repo/test-utils/fixtures/example-auth0-jwks.json"
@@ -37,7 +41,8 @@ describe("Resolver", () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(2)
     expect(mockFetch).not.toHaveBeenCalledWith(
-      "https://accounts.google.com/.well-known/jwks.json"
+      "https://accounts.google.com/.well-known/jwks.json",
+      fetchInit
     )
     expectJwksDidDocument(did, doc.didDocument)
   })
@@ -84,11 +89,13 @@ describe("Resolver", () => {
 
     expect(mockFetch).toHaveBeenNthCalledWith(
       1,
-      "https://auth.example.com/.well-known/openid-configuration/tenant123"
+      "https://auth.example.com/.well-known/openid-configuration/tenant123",
+      fetchInit
     )
     expect(mockFetch).toHaveBeenNthCalledWith(
       2,
-      "https://auth.example.com/tenant123/jwks.json"
+      "https://auth.example.com/tenant123/jwks.json",
+      fetchInit
     )
     expectJwksDidDocument(did, doc.didDocument)
   })

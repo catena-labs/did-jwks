@@ -1,4 +1,4 @@
-import { createMockFetch } from "@repo/test-utils"
+import { createMockFetch, fetchInit } from "@repo/test-utils"
 import { describe, expect, it, vi } from "vitest"
 
 import { fetchJwksDidDocument } from "./fetch"
@@ -30,7 +30,7 @@ describe("fetchJwksDidDocument() discovery-first resolution", () => {
     const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
 
     expect(keyIds(doc)).toEqual(["discovered"])
-    expect(mockFetch).not.toHaveBeenCalledWith(fixedJwksUrl)
+    expect(mockFetch).not.toHaveBeenCalledWith(fixedJwksUrl, fetchInit)
   })
 
   it("falls back to jwks.json when the discovery document returns 404", async () => {
@@ -42,8 +42,8 @@ describe("fetchJwksDidDocument() discovery-first resolution", () => {
 
     expect(keyIds(doc)).toEqual(["fixed"])
     expect(mockFetch).toHaveBeenCalledTimes(2)
-    expect(mockFetch).toHaveBeenNthCalledWith(1, discoveryUrl)
-    expect(mockFetch).toHaveBeenNthCalledWith(2, fixedJwksUrl)
+    expect(mockFetch).toHaveBeenNthCalledWith(1, discoveryUrl, fetchInit)
+    expect(mockFetch).toHaveBeenNthCalledWith(2, fixedJwksUrl, fetchInit)
   })
 
   it.each([400, 401, 403, 410, 500, 503])(
@@ -147,7 +147,7 @@ describe("fetchJwksDidDocument() discovery-first resolution", () => {
 
     expect(doc).toBeNull()
     expect(mockFetch).toHaveBeenCalledTimes(2)
-    expect(mockFetch).not.toHaveBeenCalledWith(fixedJwksUrl)
+    expect(mockFetch).not.toHaveBeenCalledWith(fixedJwksUrl, fetchInit)
   })
 
   it("does not fall back when the jwks_uri document is malformed", async () => {
@@ -160,7 +160,7 @@ describe("fetchJwksDidDocument() discovery-first resolution", () => {
     const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
 
     expect(doc).toBeNull()
-    expect(mockFetch).not.toHaveBeenCalledWith(fixedJwksUrl)
+    expect(mockFetch).not.toHaveBeenCalledWith(fixedJwksUrl, fetchInit)
   })
 
   it("does not fall back when the jwks_uri key set is empty", async () => {
@@ -173,7 +173,7 @@ describe("fetchJwksDidDocument() discovery-first resolution", () => {
     const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
 
     expect(doc).toBeNull()
-    expect(mockFetch).not.toHaveBeenCalledWith(fixedJwksUrl)
+    expect(mockFetch).not.toHaveBeenCalledWith(fixedJwksUrl, fetchInit)
   })
 
   it("returns null when the fallback key set is empty", async () => {
@@ -197,7 +197,7 @@ describe("fetchJwksDidDocument() discovery-first resolution", () => {
       fetchJwksDidDocument(did, { fetch: mockFetch })
     ).rejects.toThrow("fetch failed")
     expect(mockFetch).toHaveBeenCalledTimes(1)
-    expect(mockFetch).toHaveBeenCalledWith(discoveryUrl)
+    expect(mockFetch).toHaveBeenCalledWith(discoveryUrl, fetchInit)
   })
 
   it("allows a cross-origin https jwks_uri", async () => {
@@ -278,7 +278,7 @@ describe("fetchJwksDidDocument() discovery-first resolution", () => {
     })
 
     expect(doc).toBeNull()
-    expect(mockFetch).not.toHaveBeenCalledWith(localJwksUri)
+    expect(mockFetch).not.toHaveBeenCalledWith(localJwksUri, fetchInit)
   })
 
   it("allows an http jwks_uri for an http identity on an allowed http host", async () => {
@@ -331,6 +331,29 @@ describe("fetchJwksDidDocument() discovery-first resolution", () => {
 
       expect(doc).toBeNull()
       expect(mockFetch).toHaveBeenCalledTimes(1)
+    })
+
+    it("does not fall back when the discovery document redirects through an http hop", async () => {
+      const httpHop = "http://example.com/hop"
+      const mockFetch = vi.fn((url: string) =>
+        Promise.resolve(
+          url === discoveryUrl
+            ? new Response(null, {
+                status: 302,
+                headers: { location: httpHop }
+              })
+            : new Response(null, {
+                status: 302,
+                headers: { location: "https://attacker.example/discovery" }
+              })
+        )
+      ) as unknown as typeof globalThis.fetch
+
+      const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+      expect(doc).toBeNull()
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+      expect(mockFetch).not.toHaveBeenCalledWith(httpHop, fetchInit)
     })
 
     it("returns null when the jwks_uri redirects to http", async () => {
@@ -393,7 +416,7 @@ describe("fetchJwksDidDocument() discovery-first resolution", () => {
       const doc = await fetchJwksDidDocument(pathDid, { fetch: mockFetch })
 
       expect(keyIds(doc)).toEqual(["discovered"])
-      expect(mockFetch).toHaveBeenNthCalledWith(1, insertionForm)
+      expect(mockFetch).toHaveBeenNthCalledWith(1, insertionForm, fetchInit)
     })
 
     it("does not fall back when the issuer is the origin only", async () => {
@@ -425,7 +448,7 @@ describe("fetchJwksDidDocument() discovery-first resolution", () => {
       const doc = await fetchJwksDidDocument(pathDid, { fetch: mockFetch })
 
       expect(keyIds(doc)).toEqual(["fixed"])
-      expect(mockFetch).not.toHaveBeenCalledWith(appendForm)
+      expect(mockFetch).not.toHaveBeenCalledWith(appendForm, fetchInit)
     })
   })
 })
@@ -443,7 +466,7 @@ describe("fetchJwksDidDocument() with jwksFallback: false", () => {
 
     expect(doc).toBeNull()
     expect(mockFetch).toHaveBeenCalledTimes(1)
-    expect(mockFetch).toHaveBeenCalledWith(discoveryUrl)
+    expect(mockFetch).toHaveBeenCalledWith(discoveryUrl, fetchInit)
   })
 
   it("still resolves through a valid discovery document", async () => {
