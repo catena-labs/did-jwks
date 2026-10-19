@@ -13,7 +13,7 @@ Other changes:
 
 - The discovery `issuer` must equal the DID's URL, with one terminating `/` allowed (RFC 8414 section 3.1).
 - The `jwks_uri` must use `https` and must not carry userinfo. It may be on a different origin.
-- A redirect that lands on an `http` URL fails, on every fetch. It never counts as a discovery 404.
+- Redirects are followed one hop at a time, up to 5. A redirect to an `http` URL at any hop fails, on every fetch. It never counts as a discovery 404.
 - A JWKS with an empty `keys` array fails to resolve (`notFound`).
 - Path DIDs read only the RFC 8414 insertion form of the discovery document.
 - New `jwksFallback` option (default `true`). Set it to `false` for discovery-only resolution. The CLI has a matching `--no-fallback` flag.

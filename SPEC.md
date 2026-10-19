@@ -117,7 +117,7 @@ Construct the DID Document for _did_ as follows:
 
 When resolution fails, the resolver returns a null DID document and an error in the DID resolution metadata (for example, `notFound`).
 
-Every fetch uses `https`. If a resolver follows redirects, the URL that a response lands on MUST also use `https`. A response that lands on an `http` URL is a failure: for the discovery document, the result is _invalid_, never _missing_.
+Every fetch uses `https`. If a resolver follows redirects, every URL in the redirect chain MUST use `https`, and the resolver MUST check each hop before it fetches it. A resolver that cannot see each hop (for example, a browser `fetch`) MUST NOT follow redirects. A resolver SHOULD limit a chain to 5 redirects. A redirect to an `http` URL, at any hop, is a failure: for the discovery document, the result is _invalid_, never _missing_.
 
 #### Discover the JWKS URI
 
@@ -363,7 +363,7 @@ Breaking change to resolution.
 - The JWKS file is a fallback only when the discovery document returns 404. Any other discovery failure ends resolution.
 - A miss at the selected location ends resolution. Key sets from two locations are never combined.
 - The discovery `issuer` MUST equal the identity URL, with one terminating `/` allowed. The `jwks_uri` MUST use `https`, MUST NOT carry userinfo, and MAY be on a different origin.
-- A redirect that lands on an `http` URL is a failure, and never counts as a discovery 404.
+- A redirect to an `http` URL, at any hop of the chain, is a failure, and never counts as a discovery 404.
 - A JWKS with an empty `keys` array is malformed, so resolution fails.
 - Path DIDs read only the RFC 8414 insertion form of the discovery document.
 - Resolvers MAY offer discovery-only resolution, which turns off the fallback.
