@@ -64,7 +64,10 @@ async function fetchWithCheckedRedirects(
   currentUrl: string,
   redirectsLeft: number
 ): Promise<Response | null> {
-  const resp = await state.fetchImpl(currentUrl, { redirect: "manual" })
+  // Call fetch as a plain function. Browser and Workers fetch throw
+  // "Illegal invocation" when `this` is `state`.
+  const { fetchImpl } = state
+  const resp = await fetchImpl(currentUrl, { redirect: "manual" })
   if (resp.type === "opaqueredirect") {
     return null
   }
