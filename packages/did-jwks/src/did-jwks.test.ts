@@ -12,6 +12,7 @@ import exampleAuth0Oidc from "@repo/test-utils/fixtures/example-auth0-oidc.json"
 import tokenActionsGitHubJwks from "@repo/test-utils/fixtures/token-actions-githubusercontent-jwks.json"
 import tokenActionsGitHubOidc from "@repo/test-utils/fixtures/token-actions-githubusercontent-oidc.json"
 import { describe, it, expect, vi, afterEach } from "vitest"
+import type { Did } from "web-identity-schemas"
 
 import { fetchJwksDidDocument } from "./fetch"
 
@@ -217,5 +218,58 @@ describe("fetchJwksDidDocument()", () => {
     await expect(
       fetchJwksDidDocument("did:jwks:example.com", { fetch: mockFetch })
     ).rejects.toThrow("body stream aborted")
+  })
+})
+
+describe("fetchJwksDidDocument() authority validation", () => {
+  it.each<[string, Did<"jwks">]>([
+    ["an IP-literal authority", "did:jwks:169.254.169.254"],
+    ["a port on a host not in allowedHttpHosts", "did:jwks:127.0.0.1%3A9200"],
+    [
+      "userinfo in a percent-encoded @",
+      "did:jwks:accounts.google.com%40evil.example"
+    ],
+    ["a bracketed IPv6 authority", "did:jwks:%5B%3A%3A1%5D"]
+  ])("rejects %s before any fetch", async (_, did) => {
+    const mockFetch = createMockFetch({})
+
+    await expect(
+      fetchJwksDidDocument(did, { fetch: mockFetch })
+    ).rejects.toThrow(/Invalid did:jwks authority/)
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it("keeps a path segment that decodes to a slash inside its segment", async () => {
+    const mockFetch = createMockFetch({})
+
+    await fetchJwksDidDocument("did:jwks:example.com:foo%2Fbar", {
+      fetch: mockFetch
+    })
+
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      1,
+      "https://example.com/.well-known/openid-configuration/foo%2Fbar",
+      fetchInit
+    )
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      "https://example.com/foo%2Fbar/jwks.json",
+      fetchInit
+    )
+  })
+
+  it("allows a port on a host in allowedHttpHosts", async () => {
+    const mockFetch = createMockFetch({})
+
+    await fetchJwksDidDocument("did:jwks:127.0.0.1%3A9200", {
+      fetch: mockFetch,
+      allowedHttpHosts: ["127.0.0.1"]
+    })
+
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      "http://127.0.0.1:9200/.well-known/jwks.json",
+      fetchInit
+    )
   })
 })
