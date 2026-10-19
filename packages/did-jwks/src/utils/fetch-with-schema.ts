@@ -43,6 +43,15 @@ function isAllowedHop(
   )
 }
 
+/**
+ * Cancel a response body that is never read, so its connection is released
+ * now instead of at garbage collection. A failed cancel does not change the
+ * result.
+ */
+async function discardBody(resp: Response): Promise<void> {
+  await resp.body?.cancel().catch(() => undefined)
+}
+
 interface RedirectState {
   readonly requestedUrl: string
   readonly fetchImpl: typeof fetch
@@ -68,6 +77,7 @@ async function fetchWithCheckedRedirects(
   // "Illegal invocation" when `this` is `state`.
   const { fetchImpl } = state
   const resp = await fetchImpl(currentUrl, { redirect: "manual" })
+  // An opaque redirect (a browser hides the hop) has no body to cancel.
   if (resp.type === "opaqueredirect") {
     return null
   }
@@ -76,15 +86,19 @@ async function fetchWithCheckedRedirects(
     // A fetch implementation can ignore `redirect: "manual"` and follow
     // redirects itself. Its hops are hidden and cannot be checked, so fail
     // closed. The landed-URL check covers implementations without the flag.
-    if (resp.redirected) {
-      return null
-    }
     const landedUrl = resp.url || currentUrl
-    return isAllowedHop(state.requestedUrl, landedUrl, state.allowedHttpHosts)
-      ? resp
-      : null
+    if (
+      !resp.redirected &&
+      isAllowedHop(state.requestedUrl, landedUrl, state.allowedHttpHosts)
+    ) {
+      return resp
+    }
+    await discardBody(resp)
+    return null
   }
 
+  // A redirect body is never read.
+  await discardBody(resp)
   const location = resp.headers.get("location")
   if (
     redirectsLeft === 0 ||
@@ -128,11 +142,9 @@ export async function fetchWithSchema<T extends v.GenericSchema>(
   if (!resp) {
     return INVALID
   }
-  if (resp.status === 404) {
-    return MISSING
-  }
-  if (!resp.ok) {
-    return INVALID
+  if (resp.status === 404 || !resp.ok) {
+    await discardBody(resp)
+    return resp.status === 404 ? MISSING : INVALID
   }
 
   let json: unknown
