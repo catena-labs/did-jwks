@@ -356,6 +356,26 @@ describe("fetchJwksDidDocument() discovery-first resolution", () => {
       expect(mockFetch).not.toHaveBeenCalledWith(httpHop, fetchInit)
     })
 
+    it("does not fall back when a fetch that followed redirects returns the discovery 404", async () => {
+      const mockFetch = vi.fn((url: string) =>
+        Promise.resolve(
+          url === discoveryUrl
+            ? { ok: false, status: 404, redirected: true, url }
+            : {
+                ok: true,
+                status: 200,
+                url,
+                json: () => Promise.resolve({ keys: [rsaKey("fixed")] })
+              }
+        )
+      ) as unknown as typeof globalThis.fetch
+
+      const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+      expect(doc).toBeNull()
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+    })
+
     it("returns null when the jwks_uri redirects to http", async () => {
       const mockFetch = mockRedirectFetch({
         [jwksUri]: "http://keys.example.com/jwks"

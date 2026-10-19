@@ -131,6 +131,33 @@ describe("fetchWithSchema()", () => {
       ).resolves.toEqual({ status: "found", value: body })
     })
 
+    it("returns invalid when the fetch implementation followed redirects itself", async () => {
+      const fetch = mockResponse({
+        ok: true,
+        status: 200,
+        redirected: true,
+        url: "https://cdn.example.com/doc",
+        json: () => Promise.resolve(body)
+      })
+
+      await expect(
+        fetchWithSchema("https://example.com/doc", schema, fetch)
+      ).resolves.toEqual({ status: "invalid" })
+    })
+
+    it("returns invalid, not missing, for a 404 after redirects the fetch implementation followed", async () => {
+      const fetch = mockResponse({
+        ok: false,
+        status: 404,
+        redirected: true,
+        url: "https://example.com/other"
+      })
+
+      await expect(
+        fetchWithSchema("https://example.com/doc", schema, fetch)
+      ).resolves.toEqual({ status: "invalid" })
+    })
+
     it("returns found when an http request lands on an allowed http host", async () => {
       const fetch = mockResponse({
         ok: true,
