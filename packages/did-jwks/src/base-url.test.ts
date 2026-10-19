@@ -1,9 +1,13 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import type { Did } from "web-identity-schemas"
 
 import { buildBaseUrl, InvalidDidError } from "./base-url"
 
 describe("buildBaseUrl()", () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it.each<[Did<"jwks">, string]>([
     ["did:jwks:example.com", "https://example.com"],
     ["did:jwks:example.com:user:alice", "https://example.com/user/alice"],
@@ -39,10 +43,15 @@ describe("buildBaseUrl()", () => {
     ["a single dot segment", "did:jwks:example.com:."],
     ["a double dot segment", "did:jwks:example.com:a:..:b"],
     ["an encoded dot segment", "did:jwks:example.com:a:%2E%2E:b"],
-    ["a host that fails IDNA", "did:jwks:xn--a.com"],
     ["malformed percent-encoding", "did:jwks:example.com:%E0%A4%A"]
   ])("rejects %s", (_, did) => {
     expect(() => buildBaseUrl(did)).toThrow(InvalidDidError)
+  })
+
+  it("rejects a host that the URL parser cannot parse", () => {
+    vi.spyOn(URL, "canParse").mockReturnValue(false)
+
+    expect(() => buildBaseUrl("did:jwks:example.com")).toThrow(InvalidDidError)
   })
 
   it.each(["0", "65536", "99999"])("rejects port %s", (port) => {
