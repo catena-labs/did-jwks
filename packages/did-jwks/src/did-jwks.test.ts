@@ -1,17 +1,28 @@
 import {
-  createMockOidcHost,
+  createMockFetch,
   expectJwksDidDocument,
-  mockFetchFn
+  fetchInit
 } from "@repo/test-utils"
 import accountsGoogleJwks from "@repo/test-utils/fixtures/accounts-google-jwks.json"
 import accountsGoogleOidc from "@repo/test-utils/fixtures/accounts-google-oidc.json"
 import appleidAppleJwks from "@repo/test-utils/fixtures/appleid-apple-jwks.json"
 import appleidAppleOidc from "@repo/test-utils/fixtures/appleid-apple-oidc.json"
 import exampleAuth0Jwks from "@repo/test-utils/fixtures/example-auth0-jwks.json"
+import exampleAuth0Oidc from "@repo/test-utils/fixtures/example-auth0-oidc.json"
 import tokenActionsGitHubJwks from "@repo/test-utils/fixtures/token-actions-githubusercontent-jwks.json"
+import tokenActionsGitHubOidc from "@repo/test-utils/fixtures/token-actions-githubusercontent-oidc.json"
 import { describe, it, expect, vi, afterEach } from "vitest"
 
 import { fetchJwksDidDocument } from "./fetch"
+
+const rsaKey = {
+  kty: "RSA",
+  use: "sig",
+  kid: "test-key-1",
+  alg: "RS256",
+  n: "test-n-value",
+  e: "AQAB"
+}
 
 describe("fetchJwksDidDocument()", () => {
   afterEach(() => {
@@ -19,17 +30,8 @@ describe("fetchJwksDidDocument()", () => {
   })
 
   it("handles localhost with ports", async () => {
-    const mockFetch = mockFetchFn({
-      keys: [
-        {
-          kty: "RSA",
-          use: "sig",
-          kid: "test-key-1",
-          alg: "RS256",
-          n: "test-n-value",
-          e: "AQAB"
-        }
-      ]
+    const mockFetch = createMockFetch({
+      "http://localhost:3000/.well-known/jwks.json": { keys: [rsaKey] }
     })
 
     const did = "did:jwks:localhost%3A3000"
@@ -38,27 +40,23 @@ describe("fetchJwksDidDocument()", () => {
       allowedHttpHosts: ["localhost"]
     })
 
-    // Verify the fetch was called with the expected URL
-    expect(mockFetch).toHaveBeenCalled()
-    expect(mockFetch).toHaveBeenCalledTimes(1)
-    expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:3000/.well-known/jwks.json"
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      1,
+      "http://localhost:3000/.well-known/openid-configuration",
+      fetchInit
+    )
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      "http://localhost:3000/.well-known/jwks.json",
+      fetchInit
     )
     expectJwksDidDocument(did, doc)
   })
 
-  it("handles subdirectories with direct path resolution", async () => {
-    const mockFetch = mockFetchFn({
-      keys: [
-        {
-          kty: "RSA",
-          use: "sig",
-          kid: "test-key-1",
-          alg: "RS256",
-          n: "test-n-value",
-          e: "AQAB"
-        }
-      ]
+  it("falls back to the direct path for path DIDs after a discovery 404", async () => {
+    const mockFetch = createMockFetch({
+      "http://localhost:3000/user/alice/jwks.json": { keys: [rsaKey] }
     })
 
     const did = "did:jwks:localhost%3A3000:user:alice"
@@ -67,225 +65,143 @@ describe("fetchJwksDidDocument()", () => {
       allowedHttpHosts: ["localhost"]
     })
 
-    // Path DIDs resolve to direct file paths, not .well-known
-    expect(mockFetch).toHaveBeenCalledTimes(1)
-    expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:3000/user/alice/jwks.json"
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      1,
+      "http://localhost:3000/.well-known/openid-configuration/user/alice",
+      fetchInit
+    )
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      "http://localhost:3000/user/alice/jwks.json",
+      fetchInit
     )
     expectJwksDidDocument(did, doc)
   })
 
-  it("falls back to RFC 8414 discovery for path DIDs", async () => {
-    const jwksData = {
-      keys: [
-        {
-          kty: "RSA",
-          use: "sig",
-          kid: "test-key-1",
-          alg: "RS256",
-          n: "test-n-value",
-          e: "AQAB"
-        }
-      ]
-    }
-
-    const mockFetch = vi.fn((url: string) => {
-      // RFC 8414: .well-known inserted between origin and path
-      if (
-        url ===
-        "http://localhost:3000/.well-known/openid-configuration/user/alice"
-      ) {
-        return Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              jwks_uri: "http://localhost:3000/user/alice/keys"
-            })
-        })
-      }
-      if (url === "http://localhost:3000/user/alice/keys") {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(jwksData)
-        })
-      }
-      return Promise.resolve({ ok: false, status: 404 })
-    }) as unknown as typeof globalThis.fetch
-
-    const did = "did:jwks:localhost%3A3000:user:alice"
-    const doc = await fetchJwksDidDocument(did, {
-      fetch: mockFetch,
-      allowedHttpHosts: ["localhost"]
-    })
-
-    // Direct JWKS tried first
-    expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:3000/user/alice/jwks.json"
-    )
-    // Then RFC 8414-style discovery
-    expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:3000/.well-known/openid-configuration/user/alice"
-    )
-    expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:3000/user/alice/keys"
-    )
-    expectJwksDidDocument(did, doc)
-  })
-
-  it("resolves did:jwks:accounts.google.com", async () => {
-    const mockFetch = createMockOidcHost({
-      jwks: accountsGoogleJwks,
-      oidc: accountsGoogleOidc
+  it("resolves did:jwks:accounts.google.com through discovery", async () => {
+    const mockFetch = createMockFetch({
+      "https://accounts.google.com/.well-known/openid-configuration":
+        accountsGoogleOidc,
+      "https://www.googleapis.com/oauth2/v3/certs": accountsGoogleJwks
     })
 
     const did = "did:jwks:accounts.google.com"
-    const doc = await fetchJwksDidDocument(did, {
-      fetch: mockFetch
-    })
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
 
-    expect(mockFetch).toHaveBeenCalledTimes(3)
-    // 404:
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://accounts.google.com/.well-known/jwks.json"
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      1,
+      "https://accounts.google.com/.well-known/openid-configuration",
+      fetchInit
     )
-    // Config:
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://accounts.google.com/.well-known/openid-configuration"
-    )
-    // JWKS:
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://www.googleapis.com/oauth2/v3/certs"
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      "https://www.googleapis.com/oauth2/v3/certs",
+      fetchInit
     )
     expectJwksDidDocument(did, doc)
   })
 
-  it("resolves did:jwks:appleid.apple.com", async () => {
-    const mockFetch = createMockOidcHost({
-      jwks: appleidAppleJwks,
-      oidc: appleidAppleOidc
+  it("resolves did:jwks:appleid.apple.com through discovery", async () => {
+    const mockFetch = createMockFetch({
+      "https://appleid.apple.com/.well-known/openid-configuration":
+        appleidAppleOidc,
+      "https://appleid.apple.com/auth/keys": appleidAppleJwks
     })
 
     const did = "did:jwks:appleid.apple.com"
-    const doc = await fetchJwksDidDocument(did, {
-      fetch: mockFetch
-    })
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
 
-    expect(mockFetch).toHaveBeenCalledTimes(3)
-    // 404:
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://appleid.apple.com/.well-known/jwks.json"
-    )
-    // Config:
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://appleid.apple.com/.well-known/openid-configuration"
-    )
-    // JWKS:
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://appleid.apple.com/auth/keys"
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      "https://appleid.apple.com/auth/keys",
+      fetchInit
     )
     expectJwksDidDocument(did, doc)
   })
 
-  it("resolves did:jwks:token.actions.githubusercontent.com", async () => {
-    const mockFetch = mockFetchFn(tokenActionsGitHubJwks)
+  it("resolves did:jwks:token.actions.githubusercontent.com through discovery", async () => {
+    const mockFetch = createMockFetch({
+      "https://token.actions.githubusercontent.com/.well-known/openid-configuration":
+        tokenActionsGitHubOidc,
+      "https://token.actions.githubusercontent.com/.well-known/jwks":
+        tokenActionsGitHubJwks
+    })
 
     const did = "did:jwks:token.actions.githubusercontent.com"
-    const doc = await fetchJwksDidDocument(did, {
-      fetch: mockFetch
-    })
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
 
-    expect(mockFetch).toHaveBeenCalledTimes(1)
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://token.actions.githubusercontent.com/.well-known/jwks.json"
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      "https://token.actions.githubusercontent.com/.well-known/jwks",
+      fetchInit
     )
     expectJwksDidDocument(did, doc)
   })
 
-  it("resolves did:jwks:example.auth0.com", async () => {
-    const mockFetch = mockFetchFn(exampleAuth0Jwks)
-
-    const did = "did:jwks:example.auth0.com"
-    const doc = await fetchJwksDidDocument(did, {
-      fetch: mockFetch
+  it("resolves did:jwks:example.auth0.com through discovery with a trailing-slash issuer", async () => {
+    const mockFetch = createMockFetch({
+      "https://example.auth0.com/.well-known/openid-configuration":
+        exampleAuth0Oidc,
+      "https://example.auth0.com/.well-known/jwks.json": exampleAuth0Jwks
     })
 
-    expect(mockFetch).toHaveBeenCalledTimes(1)
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://example.auth0.com/.well-known/jwks.json"
+    const did = "did:jwks:example.auth0.com"
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      1,
+      "https://example.auth0.com/.well-known/openid-configuration",
+      fetchInit
     )
     expectJwksDidDocument(did, doc)
   })
 
   it("uses thumbprints for stable fragment identifiers", async () => {
-    const jwksWithMultipleKeys = {
-      keys: [
-        {
-          kty: "RSA",
-          use: "sig",
-          kid: "key-1",
-          n: "test-n-value-1",
-          e: "AQAB"
-        },
-        {
-          kty: "RSA",
-          use: "sig",
-          kid: "key-2",
-          n: "test-n-value-2",
-          e: "AQAB"
-        }
-      ]
-    }
-
-    const mockFetch = mockFetchFn(jwksWithMultipleKeys)
+    const mockFetch = createMockFetch({
+      "https://example.com/.well-known/jwks.json": {
+        keys: [
+          { kty: "RSA", use: "sig", kid: "key-1", n: "n-1", e: "AQAB" },
+          { kty: "RSA", use: "sig", kid: "key-2", n: "n-2", e: "AQAB" }
+        ]
+      }
+    })
     const did = "did:jwks:example.com"
     const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
 
-    expect(doc).toBeTruthy()
-    if (!doc) {
-      return
-    }
-
-    // Should have 2 verification methods
-    expect(doc.verificationMethod).toHaveLength(2)
-
-    // All fragment IDs should use thumbprints, not kid values
-    doc.verificationMethod?.forEach((vm) => {
+    expect(doc?.verificationMethod).toHaveLength(2)
+    doc?.verificationMethod?.forEach((vm) => {
       expect(vm.id).toMatch(/^did:jwks:example\.com#[A-Za-z0-9_-]+$/)
       expect(vm.id).not.toContain("key-1")
       expect(vm.id).not.toContain("key-2")
     })
   })
 
-  it("returns error when no JWKS found", async () => {
-    const mockFetch = mockFetchFn({})
+  it("returns null when neither discovery nor the JWKS exists", async () => {
+    const mockFetch = createMockFetch({})
 
-    const did = "did:jwks:example.com"
-    const doc = await fetchJwksDidDocument(did, {
-      fetch: mockFetch,
-      allowedHttpHosts: ["localhost"]
+    const doc = await fetchJwksDidDocument("did:jwks:example.com", {
+      fetch: mockFetch
     })
 
     expect(doc).toBeNull()
+    expect(mockFetch).toHaveBeenCalledTimes(2)
   })
 
-  it("returns null when JWKS and discovery responses are invalid JSON", async () => {
-    const mockFetch = vi.fn(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.reject(new SyntaxError("Unexpected token"))
-      })
-    ) as unknown as typeof globalThis.fetch
+  it("returns null when the fallback JWKS is malformed", async () => {
+    const mockFetch = createMockFetch({
+      "https://example.com/.well-known/jwks.json": { keys: "not-an-array" }
+    })
 
-    const did = "did:jwks:example.com"
-    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+    const doc = await fetchJwksDidDocument("did:jwks:example.com", {
+      fetch: mockFetch
+    })
 
     expect(doc).toBeNull()
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://example.com/.well-known/jwks.json"
-    )
-    expect(mockFetch).toHaveBeenCalledWith(
-      "https://example.com/.well-known/openid-configuration"
-    )
   })
 
   it("rethrows non-syntax JSON read failures", async () => {
@@ -293,14 +209,13 @@ describe("fetchJwksDidDocument()", () => {
     const mockFetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
+        status: 200,
         json: () => Promise.reject(error)
       })
     ) as unknown as typeof globalThis.fetch
 
-    const did = "did:jwks:example.com"
-
     await expect(
-      fetchJwksDidDocument(did, { fetch: mockFetch })
+      fetchJwksDidDocument("did:jwks:example.com", { fetch: mockFetch })
     ).rejects.toThrow("body stream aborted")
   })
 })

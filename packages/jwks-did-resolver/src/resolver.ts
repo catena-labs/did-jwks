@@ -11,6 +11,9 @@ import type { DIDResolutionResult, DIDResolver } from "did-resolver"
  * @param opts.allowedHttpHosts - The hosts that are allowed to be used via
  * `http`. All other hosts will require `https`.  This is useful for local
  * development and testing.
+ * @param opts.jwksFallback - Read `jwks.json` when the discovery document
+ * returns 404. Set to `false` for discovery-only resolution. Defaults to
+ * `true`.
  *
  * @returns A `did:jwks` resolver for use with `did-resolver`
  */

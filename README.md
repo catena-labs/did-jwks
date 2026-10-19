@@ -16,15 +16,18 @@ The `did:jwks` method allows existing OAuth2 providers to become DID-compatible 
 
 ### How it works
 
-- `did:jwks:example.com` resolves to `https://example.com/.well-known/jwks.json`
-- If that 404s, falls back to using OAuth2/OIDC discovery (`/.well-known/openid-configuration`) to find the actual JWKS endpoint
+- `did:jwks:example.com` first reads the OAuth2/OIDC discovery document at `https://example.com/.well-known/openid-configuration`. If it is valid, its `jwks_uri` is the only key location.
+- Only if the discovery document returns 404, it reads `https://example.com/.well-known/jwks.json` instead (or `https://example.com/{path}/jwks.json` for path DIDs).
+- Any other failure makes resolution fail. Resolution never moves from one key location to another, and never combines key sets.
 - Transforms the JWKS into a standard DID document with proper verification methods
+
+Resolution changed in version 2 of the spec. See the [changelog](./SPEC.md#changelog) for the reason.
 
 ### Key Benefits
 
 - **Instant compatibility**: Existing OAuth2 providers become DID-compatible without any changes
 - **No new infrastructure**: Leverages existing JWKS key rotation infrastructure
-- **Explicit semantics**: Instead of guessing where to find keys, `did:jwks:domain.com` makes it unambiguous
+- **Explicit semantics**: Instead of guessing where to find keys, `did:jwks:domain.com` resolves to exactly one location
 - **Standard tooling**: Works with existing DID resolution libraries
 
 ### Use Cases
