@@ -10,7 +10,8 @@ import type { DIDResolutionResult, DIDResolver } from "did-resolver"
  * @param opts.fetch - The fetch function to use.
  * @param opts.allowedHttpHosts - The hosts that may use `http` and a port.
  * All other hosts use `https` with no port. Entries match without regard to
- * case. This is useful for local development and testing.
+ * case. An allowed host skips the DNS-name check, so it can be an IP address.
+ * This is useful for local development and testing only.
  * @param opts.jwksFallback - Read `jwks.json` when the discovery document
  * returns 404. Set to `false` for discovery-only resolution. Defaults to
  * `true`.

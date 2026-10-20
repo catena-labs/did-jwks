@@ -27,8 +27,10 @@ export interface FetchJwksOptions {
    */
   fetch?: typeof globalThis.fetch
   /**
-   * The hosts that are allowed to be used via `http`. All other hosts will
-   * require `https`.  This is useful for local development and testing.
+   * The hosts that may use `http` and a port. All other hosts use `https`
+   * with no port. Entries match without regard to case. An allowed host skips
+   * the DNS-name check, so it can be an IP address. This is useful for local
+   * development and testing only.
    *
    * @default []
    */
