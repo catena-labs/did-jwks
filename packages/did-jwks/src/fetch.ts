@@ -1,9 +1,11 @@
-import type { Did, JsonWebKeySet } from "web-identity-schemas"
-import { JsonWebKeySetSchema } from "web-identity-schemas/valibot"
+import * as v from "valibot"
+import type { Did, JsonWebKey, JsonWebKeySet } from "web-identity-schemas"
+import { JsonWebKeySchema } from "web-identity-schemas/valibot"
 
 import { createDidJwksDidDocument } from "./did-jwks"
 import { discoverJwksUri } from "./discovery"
 import { fetchWithSchema } from "./utils/fetch-with-schema"
+import { JwksKeysSchema } from "./utils/schemas"
 
 /**
  * Build the fallback JWKS location for a `did:jwks` base URL.
@@ -74,7 +76,8 @@ async function selectJwksUrl(
  * Discovery comes first. If the discovery document is valid, its `jwks_uri`
  * is the only key location. If the discovery document returns 404, the
  * fallback `jwks.json` location is the only key location, unless
- * `opts.jwksFallback` is `false`. An empty key set counts as malformed. A
+ * `opts.jwksFallback` is `false`. Keys that are not understood are ignored
+ * (RFC 7517 section 5). A key set with no understood key counts as malformed. A
  * failure at the selected location returns `null` and never moves to another
  * location. A network error rejects.
  */
@@ -90,13 +93,33 @@ export async function fetchJwks(
 
   const jwks = await fetchWithSchema(
     jwksUrl,
-    JsonWebKeySetSchema,
+    JwksKeysSchema,
     opts.fetch,
     opts.allowedHttpHosts
   )
-  return jwks.status === "found" && jwks.value.keys.length > 0
-    ? jwks.value
-    : null
+  if (jwks.status !== "found") {
+    return null
+  }
+
+  const keys = selectUnderstoodKeys(jwks.value.keys)
+  return keys.length > 0 ? { keys } : null
+}
+
+/**
+ * Keep the keys that pass `JsonWebKeySchema`, in JWKS order.
+ *
+ * RFC 7517 section 5: implementations SHOULD ignore JWKs within a JWK Set
+ * that use `kty` values that are not understood by them, that are missing
+ * required members, or for which values are out of the supported ranges. A
+ * key set may hold keys for other uses, such as encryption keys with a JWE
+ * `alg`, or newer key types. Ignoring such a key only removes it from the DID
+ * document. It never adds a key or changes the key location.
+ */
+function selectUnderstoodKeys(keys: readonly unknown[]): JsonWebKey[] {
+  return keys.flatMap((key) => {
+    const result = v.safeParse(JsonWebKeySchema, key)
+    return result.success ? [result.output] : []
+  })
 }
 
 /**
