@@ -204,6 +204,121 @@ describe("fetchJwksDidDocument()", () => {
     expect(doc).toBeNull()
   })
 
+  describe("keys that are not understood (RFC 7517 section 5)", () => {
+    // RFC 7515 Appendix A.3 example key.
+    const sigKey = {
+      kty: "EC",
+      crv: "P-256",
+      kid: "sig",
+      use: "sig",
+      alg: "ES256",
+      x: "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU",
+      y: "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0"
+    }
+    // RFC 7517 Appendix A.1 example EC key, with a JWE key management `alg`.
+    const ecdhEncKey = {
+      kty: "EC",
+      crv: "P-256",
+      kid: "enc",
+      use: "enc",
+      alg: "ECDH-ES",
+      x: "MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4",
+      y: "4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM"
+    }
+    // A key type this resolver does not know (ML-DSA, draft-ietf-cose-dilithium).
+    const unknownKtyKey = {
+      kty: "AKP",
+      kid: "pq",
+      alg: "ML-DSA-44",
+      pub: "AAAA"
+    }
+
+    function resolveWith(keys: unknown[]) {
+      const mockFetch = createMockFetch({
+        "https://example.com/.well-known/jwks.json": { keys }
+      })
+      return fetchJwksDidDocument("did:jwks:example.com", { fetch: mockFetch })
+    }
+
+    it("ignores an encryption key with a JWE alg and resolves the rest", async () => {
+      const doc = await resolveWith([sigKey, ecdhEncKey])
+
+      expect(doc?.verificationMethod).toHaveLength(1)
+      expect(doc?.verificationMethod?.[0]).toMatchObject({
+        publicKeyJwk: { kid: "sig" }
+      })
+      expect(doc?.authentication).toEqual([doc?.verificationMethod?.[0]?.id])
+    })
+
+    it("ignores a key with an unknown kty and resolves the rest", async () => {
+      const doc = await resolveWith([unknownKtyKey, sigKey])
+
+      expect(doc?.verificationMethod).toHaveLength(1)
+      expect(doc?.verificationMethod?.[0]).toMatchObject({
+        publicKeyJwk: { kid: "sig" }
+      })
+    })
+
+    it("ignores entries that are not JWK objects", async () => {
+      const doc = await resolveWith(["not-a-key", null, sigKey])
+
+      expect(doc?.verificationMethod).toHaveLength(1)
+    })
+
+    it("ignores a key that is missing a required member", async () => {
+      const { y: _y, ...missingY } = {
+        ...ecdhEncKey,
+        kid: "no-y",
+        alg: "ES256"
+      }
+      const doc = await resolveWith([missingY, sigKey])
+
+      expect(doc?.verificationMethod).toHaveLength(1)
+      expect(doc?.verificationMethod?.[0]).toMatchObject({
+        publicKeyJwk: { kid: "sig" }
+      })
+    })
+
+    it("ignores a key with an unsupported curve", async () => {
+      const doc = await resolveWith([
+        { ...sigKey, kid: "p192", crv: "P-192" },
+        sigKey
+      ])
+
+      expect(doc?.verificationMethod).toHaveLength(1)
+      expect(doc?.verificationMethod?.[0]).toMatchObject({
+        publicKeyJwk: { kid: "sig" }
+      })
+    })
+
+    it("ignores keys that are not understood at a discovered jwks_uri", async () => {
+      const jwksUri = "https://keys.example.com/jwks"
+      const mockFetch = createMockFetch({
+        "https://example.com/.well-known/openid-configuration": {
+          issuer: "https://example.com",
+          jwks_uri: jwksUri
+        },
+        [jwksUri]: { keys: [unknownKtyKey, sigKey] }
+      })
+
+      const doc = await fetchJwksDidDocument("did:jwks:example.com", {
+        fetch: mockFetch
+      })
+
+      expect(doc?.verificationMethod).toHaveLength(1)
+      expect(doc?.verificationMethod?.[0]).toMatchObject({
+        publicKeyJwk: { kid: "sig" }
+      })
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+    })
+
+    it("returns null when no key in the set is understood", async () => {
+      const doc = await resolveWith([unknownKtyKey, ecdhEncKey])
+
+      expect(doc).toBeNull()
+    })
+  })
+
   it("rethrows non-syntax JSON read failures", async () => {
     const error = new Error("body stream aborted")
     const mockFetch = vi.fn(() =>

@@ -64,7 +64,7 @@ const didDocument = await fetchJwksDidDocument("did:jwks:example.com", {
    - Valid discovery document: its `jwks_uri`. The `issuer` must equal the DID's URL (one terminating `/` allowed). The `jwks_uri` must use `https`, must not carry userinfo, and may be on a different origin.
    - Discovery returns 404: the fallback file, `https://domain/.well-known/jwks.json` or `https://domain/{path}/jwks.json` (unless `jwksFallback` is `false`).
    - Any other discovery result: resolution fails.
-4. **Fetch JWKS** from the selected location. A miss, an empty key set, or a redirect to `http` at any hop fails. It never moves to another location.
+4. **Fetch JWKS** from the selected location. A miss, an empty key set, a key set with no understood key, or a redirect to `http` at any hop fails. Keys that are not understood (for example, an unknown `kty` or a JWE `alg`) are ignored (RFC 7517 section 5). It never moves to another location.
 5. **Transform**: Converts JWKS keys to DID verification methods
 6. **Generate**: Creates a standard DID document
 

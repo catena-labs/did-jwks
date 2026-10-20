@@ -102,7 +102,7 @@ Construct the DID Document for _did_ as follows:
      - **Root DIDs** (no path): `https://{domain}/.well-known/jwks.json`
      - **Path DIDs**: `https://{domain}/{path}/jwks.json`
    - If the result is _invalid_, resolution fails.
-1. **Fetch the JWKS** from the selected location. If the response is not a success, if the request fails, or if the body is not a valid JWKS, resolution fails. A JWKS with an empty `keys` array is not valid. The resolver MUST NOT fetch keys from any other location. In particular, it MUST NOT fetch the fallback JWKS file after a `jwks_uri` miss.
+1. **Fetch the JWKS** from the selected location. If the response is not a success, if the request fails, or if the body is not a valid JWKS, resolution fails. A JWKS with an empty `keys` array is not valid. Per [RFC 7517](https://www.rfc-editor.org/rfc/rfc7517) section 5, the resolver ignores a key that it does not understand (for example, an unknown `kty`, a missing required member, or an `alg` it does not support) and uses the other keys. A JWKS in which no key is understood is not valid. Ignoring a key never adds a key and never changes the key location. The resolver MUST NOT fetch keys from any other location. In particular, it MUST NOT fetch the fallback JWKS file after a `jwks_uri` miss.
 1. **Generate DID Document**:
    - Set `id` to _did_
    - Set `@context` to `["https://www.w3.org/ns/did/v1"]`
