@@ -220,6 +220,87 @@ describe("fetchJwksDidDocument()", () => {
       fetchJwksDidDocument("did:jwks:example.com", { fetch: mockFetch })
     ).rejects.toThrow("body stream aborted")
   })
+
+  it("skips symmetric (oct) keys instead of publishing the secret", async () => {
+    const mockFetch = mockFetchFn({
+      keys: [
+        {
+          kty: "oct",
+          kid: "sym-1",
+          k: "AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow"
+        },
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "pub-1",
+          n: "test-n-value",
+          e: "AQAB"
+        }
+      ]
+    })
+
+    const did = "did:jwks:example.com"
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(doc).toBeTruthy()
+    expect(doc?.verificationMethod).toHaveLength(1)
+    expect(JSON.stringify(doc)).not.toContain("AyM1SysPpbyDfgZld3umj1qzKObw")
+  })
+
+  it("skips keys carrying private material instead of leaking it", async () => {
+    const mockFetch = mockFetchFn({
+      keys: [
+        {
+          kty: "RSA",
+          kid: "priv-1",
+          n: "test-n-value",
+          e: "AQAB",
+          d: "test-d-value"
+        },
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "pub-1",
+          n: "test-n-value-2",
+          e: "AQAB"
+        }
+      ]
+    })
+
+    const did = "did:jwks:example.com"
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(doc).toBeTruthy()
+    expect(doc?.verificationMethod).toHaveLength(1)
+    expect(JSON.stringify(doc)).not.toContain("test-d-value")
+  })
+
+  it("dedupes keys with identical thumbprints", async () => {
+    const mockFetch = mockFetchFn({
+      keys: [
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "key-1",
+          n: "same-n-value",
+          e: "AQAB"
+        },
+        {
+          kty: "RSA",
+          use: "sig",
+          kid: "key-2",
+          n: "same-n-value",
+          e: "AQAB"
+        }
+      ]
+    })
+
+    const did = "did:jwks:example.com"
+    const doc = await fetchJwksDidDocument(did, { fetch: mockFetch })
+
+    expect(doc).toBeTruthy()
+    expect(doc?.verificationMethod).toHaveLength(1)
+  })
 })
 
 describe("fetchJwksDidDocument() authority validation", () => {
