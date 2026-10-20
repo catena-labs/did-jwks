@@ -112,6 +112,7 @@ Construct the DID Document for _did_ as follows:
      - Set `type: "JsonWebKey"`
      - Set `controller: {did}`
      - Set `publicKeyJwk` to the key
+   - Emit one verification method per thumbprint. The thumbprint covers only the required members of the key, so a key set can list the same key more than once (for example, with a different `kid` or `alg`). The first such key in `keys` order supplies `publicKeyJwk`, and each verification relationship lists the id at most once. The optional members of a later duplicate, such as its `kid` or `alg`, do not appear in the DID Document, so a verifier SHOULD select a verification method by its thumbprint fragment, not by `publicKeyJwk.kid`
    - Populate `assertionMethod` and `authentication` with keys where `use: "sig"` (default if unspecified)
    - Populate `keyAgreement` with keys where `use: "enc"`
 

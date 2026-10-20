@@ -51,43 +51,41 @@ export async function createDidJwksDidDocument(
     })
   )
 
-  const { verificationMethods, sigMethodIds, encMethodIds } =
-    keysWithThumbprints.reduce<{
-      verificationMethods: VerificationMethod[]
-      sigMethodIds: string[]
-      encMethodIds: string[]
-    }>(
-      (acc, { use, publicKeyJwk, thumbprint }) => {
-        const id = `${did}#${thumbprint}` as const
+  // The thumbprint covers only the key material, so the same key listed twice
+  // (with a different `kid` or `alg`) yields the same id. DID Core requires
+  // unique verification method ids, so each id is emitted once, from its first
+  // key in JWKS order, and listed once in each relationship it belongs to.
+  const verificationMethods: VerificationMethod[] = []
+  const seenMethodIds = new Set<string>()
+  const sigMethodIds = new Set<string>()
+  const encMethodIds = new Set<string>()
 
-        acc.verificationMethods.push({
-          id,
-          type: "JsonWebKey",
-          controller: did,
-          publicKeyJwk
-        })
+  for (const { use, publicKeyJwk, thumbprint } of keysWithThumbprints) {
+    const id = `${did}#${thumbprint}` as const
 
-        if (use === "enc") {
-          acc.encMethodIds.push(id)
-        } else {
-          acc.sigMethodIds.push(id)
-        }
+    if (!seenMethodIds.has(id)) {
+      seenMethodIds.add(id)
+      verificationMethods.push({
+        id,
+        type: "JsonWebKey",
+        controller: did,
+        publicKeyJwk
+      })
+    }
 
-        return acc
-      },
-      {
-        verificationMethods: [],
-        sigMethodIds: [],
-        encMethodIds: []
-      }
-    )
+    if (use === "enc") {
+      encMethodIds.add(id)
+    } else {
+      sigMethodIds.add(id)
+    }
+  }
 
   return v.parse(MinimalDidDocumentSchema, {
     "@context": ["https://www.w3.org/ns/did/v1"],
     id: did,
     verificationMethod: verificationMethods,
-    assertionMethod: sigMethodIds,
-    authentication: sigMethodIds,
-    ...(encMethodIds.length > 0 && { keyAgreement: encMethodIds })
+    assertionMethod: [...sigMethodIds],
+    authentication: [...sigMethodIds],
+    ...(encMethodIds.size > 0 && { keyAgreement: [...encMethodIds] })
   })
 }
