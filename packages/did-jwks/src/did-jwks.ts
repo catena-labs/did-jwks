@@ -51,8 +51,23 @@ export async function createDidJwksDidDocument(
     })
   )
 
+  // RFC 7638 thumbprints are computed only from required key-type members
+  // (e.g. kty/n/e for RSA), so two keys with identical key material but
+  // different `kid`/`alg` produce the same thumbprint. Without deduplication
+  // that yields two verification methods sharing the same `id`, violating
+  // the DID Core requirement that verification method ids be unique. Keep
+  // only the first occurrence of each thumbprint.
+  const seenThumbprints = new Set<string>()
+  const dedupedKeys = keysWithThumbprints.filter(({ thumbprint }) => {
+    if (seenThumbprints.has(thumbprint)) {
+      return false
+    }
+    seenThumbprints.add(thumbprint)
+    return true
+  })
+
   const { verificationMethods, sigMethodIds, encMethodIds } =
-    keysWithThumbprints.reduce<{
+    dedupedKeys.reduce<{
       verificationMethods: VerificationMethod[]
       sigMethodIds: string[]
       encMethodIds: string[]
