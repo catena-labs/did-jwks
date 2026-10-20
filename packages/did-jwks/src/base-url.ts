@@ -9,6 +9,7 @@ export class InvalidDidError extends Error {
 
 const MAX_PORT = 65_535
 const DEFAULT_HTTP_PORT = 80
+const NON_PRINTABLE_ASCII = /[^!-~]/u
 
 function isValidHostnameLabel(label: string): boolean {
   return (
@@ -84,9 +85,14 @@ function validateAuthority(
   }
 
   const colonIndex = authority.indexOf(":")
-  const hostname = (
+  const rawHostname =
     colonIndex === -1 ? authority : authority.slice(0, colonIndex)
-  ).toLowerCase()
+  // Check before lowercasing: some non-ASCII characters, such as the Kelvin
+  // sign (U+212A), lowercase to ASCII.
+  if (NON_PRINTABLE_ASCII.test(rawHostname)) {
+    throw invalidAuthority(authority)
+  }
+  const hostname = rawHostname.toLowerCase()
   const port = colonIndex === -1 ? null : authority.slice(colonIndex + 1)
   const isAllowed = allowedHttpHosts.includes(hostname)
 

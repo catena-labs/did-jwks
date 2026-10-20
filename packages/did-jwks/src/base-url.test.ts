@@ -41,6 +41,10 @@ describe("buildBaseUrl()", () => {
     ["an IPv4 literal", "did:jwks:169.254.169.254"],
     ["a hex IPv4 literal", "did:jwks:0x7f.0.0.0x1"],
     ["a trailing-dot host", "did:jwks:example.com."],
+    [
+      "a non-ASCII host that lowercases to ASCII",
+      "did:jwks:%E2%84%AAeys.example.com"
+    ],
     ["userinfo", "did:jwks:good.com%40evil.com"],
     ["a query marker", "did:jwks:example.com%3Fa=b"],
     ["a fragment marker", "did:jwks:example.com%23x"],
@@ -61,6 +65,12 @@ describe("buildBaseUrl()", () => {
     vi.spyOn(URL, "canParse").mockReturnValue(false)
 
     expect(() => buildBaseUrl("did:jwks:example.com")).toThrow(InvalidDidError)
+  })
+
+  it("rejects a non-ASCII host that lowercases to an allowed host", () => {
+    expect(() =>
+      buildBaseUrl("did:jwks:%E2%84%AAeys.example.com", ["keys.example.com"])
+    ).toThrow(InvalidDidError)
   })
 
   it.each(["0", "65536", "99999"])("rejects port %s", (port) => {
