@@ -13,6 +13,7 @@ import tokenActionsGitHubJwks from "@repo/test-utils/fixtures/token-actions-gith
 import tokenActionsGitHubOidc from "@repo/test-utils/fixtures/token-actions-githubusercontent-oidc.json"
 import { describe, it, expect, vi, afterEach } from "vitest"
 
+import { createDidJwksDidDocument } from "./did-jwks"
 import { fetchJwksDidDocument } from "./fetch"
 
 const rsaKey = {
@@ -217,5 +218,87 @@ describe("fetchJwksDidDocument()", () => {
     await expect(
       fetchJwksDidDocument("did:jwks:example.com", { fetch: mockFetch })
     ).rejects.toThrow("body stream aborted")
+  })
+})
+
+function kids(doc: { verificationMethod?: unknown[] }): unknown[] {
+  return (doc.verificationMethod ?? []).map(
+    (vm) => (vm as { publicKeyJwk?: { kid?: string } }).publicKeyJwk?.kid
+  )
+}
+
+describe("createDidJwksDidDocument()", () => {
+  const did = "did:jwks:example.com"
+  // RFC 7515 Appendix A.3 example key. The thumbprint covers only the required
+  // members, so `kid`, `alg` and `use` do not change it.
+  const ecKey = {
+    kty: "EC",
+    crv: "P-256",
+    x: "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU",
+    y: "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0"
+  } as const
+  // RFC 7517 Appendix A.1 example EC public key.
+  const otherEcKey = {
+    kty: "EC",
+    crv: "P-256",
+    x: "MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4",
+    y: "4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM"
+  } as const
+
+  it("emits one verification method for key material listed twice", async () => {
+    const doc = await createDidJwksDidDocument(did, {
+      keys: [
+        { ...ecKey, kid: "a", alg: "ES256", use: "sig" },
+        { ...ecKey, kid: "b", use: "sig" }
+      ]
+    })
+
+    expect(doc.verificationMethod).toHaveLength(1)
+    expect(kids(doc)).toEqual(["a"])
+    expect(doc.authentication).toEqual([doc.verificationMethod?.[0]?.id])
+    expect(doc.assertionMethod).toEqual([doc.verificationMethod?.[0]?.id])
+  })
+
+  it("lists each verification method id once in every relationship", async () => {
+    const doc = await createDidJwksDidDocument(did, {
+      keys: [
+        { ...ecKey, kid: "sig-1", use: "sig" },
+        { ...otherEcKey, kid: "enc-1", use: "enc" },
+        { ...ecKey, kid: "sig-2", use: "sig" },
+        { ...otherEcKey, kid: "enc-2", use: "enc" }
+      ]
+    })
+
+    const [sigId, encId] = doc.verificationMethod?.map((vm) => vm.id) ?? []
+    expect(doc.verificationMethod).toHaveLength(2)
+    expect(doc.authentication).toEqual([sigId])
+    expect(doc.assertionMethod).toEqual([sigId])
+    expect(doc.keyAgreement).toEqual([encId])
+  })
+
+  it("keeps both relationships for key material listed with sig and enc", async () => {
+    const doc = await createDidJwksDidDocument(did, {
+      keys: [
+        { ...ecKey, kid: "s", use: "sig" },
+        { ...ecKey, kid: "e", use: "enc" }
+      ]
+    })
+
+    const id = doc.verificationMethod?.[0]?.id
+    expect(doc.verificationMethod).toHaveLength(1)
+    expect(doc.authentication).toEqual([id])
+    expect(doc.assertionMethod).toEqual([id])
+    expect(doc.keyAgreement).toEqual([id])
+  })
+
+  it("keeps distinct keys in JWKS order", async () => {
+    const doc = await createDidJwksDidDocument(did, {
+      keys: [
+        { ...otherEcKey, kid: "first" },
+        { ...ecKey, kid: "second" }
+      ]
+    })
+
+    expect(kids(doc)).toEqual(["first", "second"])
   })
 })
