@@ -1,4 +1,4 @@
-import { isDidJwks, fetchJwksDidDocument } from "did-jwks"
+import { isDidJwks, fetchJwksDidDocument, InvalidDidError } from "did-jwks"
 import type { FetchJwksOptions } from "did-jwks"
 import type { DIDResolutionResult, DIDResolver } from "did-resolver"
 
@@ -8,9 +8,10 @@ import type { DIDResolutionResult, DIDResolver } from "did-resolver"
  *
  * @param opts - Additional options for the resolver
  * @param opts.fetch - The fetch function to use.
- * @param opts.allowedHttpHosts - The hosts that are allowed to be used via
- * `http`. All other hosts will require `https`.  This is useful for local
- * development and testing.
+ * @param opts.allowedHttpHosts - The hosts that may use `http` and a port.
+ * All other hosts use `https` with no port. Entries match without regard to
+ * case. An allowed host skips the DNS-name check, so it can be an IP address.
+ * This is useful for local development and testing only.
  * @param opts.jwksFallback - Read `jwks.json` when the discovery document
  * returns 404. Set to `false` for discovery-only resolution. Defaults to
  * `true`.
@@ -41,6 +42,14 @@ export function getResolver(opts: FetchJwksOptions = {}): {
     try {
       didDocument = await fetchJwksDidDocument(did, opts)
     } catch (e) {
+      if (e instanceof InvalidDidError) {
+        return {
+          didDocument: null,
+          didDocumentMetadata: {},
+          didResolutionMetadata: { error: "invalidDid", message: e.message }
+        }
+      }
+
       return {
         didDocument: null,
         didDocumentMetadata: {},

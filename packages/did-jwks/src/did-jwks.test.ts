@@ -12,7 +12,9 @@ import exampleAuth0Oidc from "@repo/test-utils/fixtures/example-auth0-oidc.json"
 import tokenActionsGitHubJwks from "@repo/test-utils/fixtures/token-actions-githubusercontent-jwks.json"
 import tokenActionsGitHubOidc from "@repo/test-utils/fixtures/token-actions-githubusercontent-oidc.json"
 import { describe, it, expect, vi, afterEach } from "vitest"
+import type { Did } from "web-identity-schemas"
 
+import { InvalidDidError } from "./base-url"
 import { fetchJwksDidDocument } from "./fetch"
 
 const rsaKey = {
@@ -217,5 +219,77 @@ describe("fetchJwksDidDocument()", () => {
     await expect(
       fetchJwksDidDocument("did:jwks:example.com", { fetch: mockFetch })
     ).rejects.toThrow("body stream aborted")
+  })
+})
+
+describe("fetchJwksDidDocument() authority validation", () => {
+  it.each<[string, Did<"jwks">]>([
+    ["an IP-literal authority", "did:jwks:169.254.169.254"],
+    ["a port on a host not in allowedHttpHosts", "did:jwks:127.0.0.1%3A9200"],
+    [
+      "userinfo in a percent-encoded @",
+      "did:jwks:accounts.google.com%40evil.example"
+    ],
+    ["a bracketed IPv6 authority", "did:jwks:%5B%3A%3A1%5D"],
+    ["a dot segment in the path", "did:jwks:example.com:tenant:%2E%2E:admin"]
+  ])("rejects %s before any fetch", async (_, did) => {
+    const mockFetch = createMockFetch({})
+
+    await expect(
+      fetchJwksDidDocument(did, { fetch: mockFetch })
+    ).rejects.toThrow(InvalidDidError)
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it("keeps a path segment that decodes to a slash inside its segment", async () => {
+    const mockFetch = createMockFetch({})
+
+    await fetchJwksDidDocument("did:jwks:example.com:foo%2Fbar", {
+      fetch: mockFetch
+    })
+
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      1,
+      "https://example.com/.well-known/openid-configuration/foo%2Fbar",
+      fetchInit
+    )
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      "https://example.com/foo%2Fbar/jwks.json",
+      fetchInit
+    )
+  })
+
+  it("matches allowedHttpHosts without regard to case in every check", async () => {
+    const mockFetch = createMockFetch({
+      "http://localhost:9200/.well-known/openid-configuration": {
+        issuer: "http://localhost:9200",
+        jwks_uri: "http://localhost:9200/keys"
+      },
+      "http://localhost:9200/keys": { keys: [rsaKey] }
+    })
+
+    const did = "did:jwks:LocalHost%3A9200"
+    const doc = await fetchJwksDidDocument(did, {
+      fetch: mockFetch,
+      allowedHttpHosts: ["LocalHost"]
+    })
+
+    expectJwksDidDocument(did, doc)
+  })
+
+  it("allows a port on a host in allowedHttpHosts", async () => {
+    const mockFetch = createMockFetch({})
+
+    await fetchJwksDidDocument("did:jwks:127.0.0.1%3A9200", {
+      fetch: mockFetch,
+      allowedHttpHosts: ["127.0.0.1"]
+    })
+
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      2,
+      "http://127.0.0.1:9200/.well-known/jwks.json",
+      fetchInit
+    )
   })
 })

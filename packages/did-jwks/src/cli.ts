@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { InvalidDidError } from "./base-url"
 import { parseCliArgs } from "./cli-args"
 import { isDidJwks } from "./did-jwks"
 import { fetchJwksDidDocument } from "./fetch"
@@ -41,6 +42,10 @@ async function main() {
 }
 
 main().catch((error: unknown) => {
-  console.error("Fatal error:", error)
+  if (error instanceof InvalidDidError) {
+    console.error(`Error: ${error.message}`)
+  } else {
+    console.error("Fatal error:", error)
+  }
   process.exit(1)
 })

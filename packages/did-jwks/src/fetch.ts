@@ -1,6 +1,7 @@
 import type { Did, JsonWebKeySet } from "web-identity-schemas"
 import { JsonWebKeySetSchema } from "web-identity-schemas/valibot"
 
+import { buildBaseUrl } from "./base-url"
 import { createDidJwksDidDocument } from "./did-jwks"
 import { discoverJwksUri } from "./discovery"
 import { fetchWithSchema } from "./utils/fetch-with-schema"
@@ -26,8 +27,10 @@ export interface FetchJwksOptions {
    */
   fetch?: typeof globalThis.fetch
   /**
-   * The hosts that are allowed to be used via `http`. All other hosts will
-   * require `https`.  This is useful for local development and testing.
+   * The hosts that may use `http` and a port. All other hosts use `https`
+   * with no port. Entries match without regard to case. An allowed host skips
+   * the DNS-name check, so it can be an IP address. This is useful for local
+   * development and testing only.
    *
    * @default []
    */
@@ -76,12 +79,19 @@ async function selectJwksUrl(
  * fallback `jwks.json` location is the only key location, unless
  * `opts.jwksFallback` is `false`. An empty key set counts as malformed. A
  * failure at the selected location returns `null` and never moves to another
- * location. A network error rejects.
+ * location. A network error rejects. A DID that does not name a valid
+ * resolution URL rejects with `InvalidDidError`.
  */
 export async function fetchJwks(
   did: Did<"jwks">,
-  opts: FetchJwksOptions = {}
+  rawOpts: FetchJwksOptions = {}
 ): Promise<JsonWebKeySet | null> {
+  const opts = {
+    ...rawOpts,
+    allowedHttpHosts: rawOpts.allowedHttpHosts?.map((host) =>
+      host.toLowerCase()
+    )
+  }
   const base = buildBaseUrl(did, opts.allowedHttpHosts)
   const jwksUrl = await selectJwksUrl(base, opts)
   if (!jwksUrl) {
@@ -116,44 +126,4 @@ export async function fetchJwksDidDocument(
   }
 
   return await createDidJwksDidDocument(did, jwks)
-}
-
-/**
- * Build a base URL from a full `did:jwks` URI.
- *
- * @example
- * ```
- * const base = buildBaseUrl("did:jwks:accounts.google.com:matt");
- * // base === "https://accounts.google.com/matt"
- * ```
- *
- * @returns The base URL
- */
-function buildBaseUrl(
-  did: Did<"jwks">,
-  allowedHttpHosts: string[] = []
-): string {
-  const basePath = did
-    .replace(/^did:jwks:/, "")
-    .split(":")
-    .map(decodeURIComponent)
-    .join("/")
-    .replace(/\/+$/, "") // Strip trailing slashes in case of trailing colons
-
-  const protocol = getProtocol(basePath, allowedHttpHosts)
-  return `${protocol}://${basePath}`
-}
-
-function getProtocol(
-  path: string,
-  allowedHttpHosts: string[] = []
-): "http" | "https" {
-  const [host] = path.split("/")
-
-  if (host) {
-    const hostWithoutPort = host.split(":")[0] ?? host
-    return allowedHttpHosts.includes(hostWithoutPort) ? "http" : "https"
-  }
-
-  return "https"
 }

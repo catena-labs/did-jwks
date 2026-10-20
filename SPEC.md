@@ -47,6 +47,14 @@ segment  = *( unreserved / pct-encoded )
 
 Like `did:web`, colons (`:`) in the path are converted to forward slashes (`/`) during resolution.
 
+A resolver MUST reject the DID with `invalidDid`, before any fetch, when:
+
+- The decoded `domain-name` is not a DNS domain name. For example, it holds userinfo (`@`), a port, a `/`, `?` or `#`, or an IP address.
+- A path segment is empty, or decodes to `.` or `..`.
+- A `pct-encoded` sequence does not decode.
+
+To form a URL path segment, a resolver decodes each segment and encodes again every character that is not an RFC 3986 `pchar`. For example, `%`, `/`, `?`, `#`, `\`, a space and a tab are encoded, and `@` and `:` are not. A segment then always stays one URL path segment.
+
 ### Resolution Algorithm
 
 1. **Parse Path**: Convert colons (`:`) in the path to forward slashes (`/`). This gives the _identity URL_: `https://{domain}` for root DIDs and `https://{domain}/{path}` for path DIDs.
@@ -366,6 +374,7 @@ Breaking change to resolution.
 - A redirect to an `http` URL, at any hop of the chain, is a failure, and never counts as a discovery 404.
 - A JWKS with an empty `keys` array is malformed, so resolution fails.
 - Path DIDs read only the RFC 8414 insertion form of the discovery document.
+- A resolver rejects a DID whose domain is not a DNS domain name, or whose path holds an empty, `.` or `..` segment, with `invalidDid`. A decoded character that is not an RFC 3986 `pchar`, such as `/`, `?` or `#`, stays encoded inside its path segment.
 - Resolvers MAY offer discovery-only resolution, which turns off the fallback.
 - Reason: version 1 read the JWKS file first and fell back to discovery on any miss. Deleting `jwks.json` then did not revoke keys, because resolvers read a different key set from the discovery document.
 
